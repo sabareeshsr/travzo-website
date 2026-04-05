@@ -1,14 +1,20 @@
 <?php
 /**
  * Front Page Template – Travzo Holidays Homepage
+ *
+ * TODO: Replace custom forms with WPForms shortcodes once WPForms is installed.
+ * 1. Install WPForms plugin and create your forms.
+ * 2. Go to Travzo Settings → WPForms Integration and enter the form IDs.
+ * 3. The travzo_render_form() helper will automatically use WPForms when an ID is saved.
+ *    Manual override: <?php echo do_shortcode('[wpforms id="YOUR_FORM_ID"]'); ?>
  */
 
 // ── Section 8 form handling ────────────────────────────────────────────────────
 $enquiry_sent  = false;
 $enquiry_error = false;
 
-if ( isset( $_POST['travzo_enquiry_nonce'] ) &&
-     wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['travzo_enquiry_nonce'] ) ), 'travzo_enquiry' ) ) {
+if ( isset( $_POST['travzo_enquiry'], $_POST['travzo_nonce'] ) &&
+     wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['travzo_nonce'] ) ), 'travzo_enquiry_form' ) ) {
 
     $name        = sanitize_text_field( wp_unslash( $_POST['enquiry_name']        ?? '' ) );
     $city        = sanitize_text_field( wp_unslash( $_POST['enquiry_city']        ?? '' ) );
@@ -20,7 +26,7 @@ if ( isset( $_POST['travzo_enquiry_nonce'] ) &&
     $trip_type   = sanitize_text_field( wp_unslash( $_POST['enquiry_trip_type']   ?? '' ) );
 
     if ( $name && $email && is_email( $email ) ) {
-        $to      = 'hello@travzoholidays.com';
+        $to      = travzo_get( 'travzo_email', 'hello@travzoholidays.com' );
         $subject = sprintf( 'New Enquiry from %s – Travzo Holidays', $name );
         $body    = "New holiday enquiry received:\n\n"
                  . "Name:        {$name}\n"
@@ -49,20 +55,14 @@ get_header();
      SECTION 1 – HERO
 ════════════════════════════════════════════════════════════════ -->
 <?php
-$hero_image   = '';
-$hero_badge   = 'Trusted by 500+ Happy Travellers';
-$hero_heading = 'Discover the World With Travzo Holidays';
-$hero_subtext = 'Handcrafted itineraries for every kind of traveller.';
-
-if ( function_exists( 'get_field' ) ) {
-    $hero_img_arr = get_field( 'hero_image' );
-    if ( $hero_img_arr ) {
-        $hero_image = is_array( $hero_img_arr ) ? esc_url( $hero_img_arr['url'] ) : esc_url( $hero_img_arr );
-    }
-    $hero_badge   = get_field( 'hero_badge_text' )   ?: $hero_badge;
-    $hero_heading = get_field( 'hero_heading' )       ?: $hero_heading;
-    $hero_subtext = get_field( 'hero_subtext' )       ?: $hero_subtext;
-}
+$hero_image              = travzo_get( 'travzo_hero_image', '' );
+$hero_badge              = travzo_get( 'travzo_hero_badge',     'Trusted by 500+ Happy Travellers' );
+$hero_heading            = travzo_get( 'travzo_hero_heading',   'Discover the World With Travzo Holidays' );
+$hero_subtext            = travzo_get( 'travzo_hero_subtext',   'Handcrafted itineraries for every kind of traveller.' );
+$hero_primary_btn_text   = travzo_get( 'travzo_hero_btn1_text', 'Explore Packages' );
+$hero_primary_btn_url    = travzo_get( 'travzo_hero_btn1_url',  home_url( '/packages' ) );
+$hero_secondary_btn_text = travzo_get( 'travzo_hero_btn2_text', 'Enquire Now' );
+$hero_secondary_btn_url  = travzo_get( 'travzo_hero_btn2_url',  home_url( '/contact' ) );
 
 $hero_bg_style = $hero_image
     ? 'background-image: url(' . $hero_image . ');'
@@ -84,11 +84,11 @@ $hero_bg_style = $hero_image
         <p class="hero-subtext"><?php echo esc_html( $hero_subtext ); ?></p>
 
         <div class="hero-buttons">
-            <a href="<?php echo esc_url( home_url( '/packages' ) ); ?>" class="btn btn--gold">
-                Explore Packages
+            <a href="<?php echo esc_url( $hero_primary_btn_url ); ?>" class="btn btn--gold">
+                <?php echo esc_html( $hero_primary_btn_text ); ?>
             </a>
-            <a href="<?php echo esc_url( home_url( '/contact' ) ); ?>" class="btn btn--ghost-white">
-                Enquire Now
+            <a href="<?php echo esc_url( $hero_secondary_btn_url ); ?>" class="btn btn--ghost-white">
+                <?php echo esc_html( $hero_secondary_btn_text ); ?>
             </a>
         </div>
     </div><!-- /.hero-content -->
@@ -137,79 +137,76 @@ $hero_bg_style = $hero_image
 <!-- ════════════════════════════════════════════════════════════════
      SECTION 2 – OUR PACKAGES
 ════════════════════════════════════════════════════════════════ -->
+<?php
+$pkg_section_label   = 'WHAT WE OFFER';
+$pkg_section_heading = 'Our Packages';
+
+// cols: [0]=name, [1]=count, [2]=url, [3]=image
+$pkg_tiles_raw  = get_post_meta( get_the_ID(), '_package_tiles', true );
+$pkg_tiles_data = travzo_parse_lines( $pkg_tiles_raw, 4 );
+
+if ( empty( $pkg_tiles_data ) ) {
+    // Auto-count live packages per type
+    $type_map = [
+        'Group Tours'            => 'group-tour',
+        'Honeymoon Packages'     => 'honeymoon',
+        'Solo Trips'             => 'solo',
+        'Devotional Tours'       => 'devotional',
+        'Destination Weddings'   => 'destination-wedding',
+        'International Packages' => 'international',
+    ];
+    $pkg_tiles_data = [];
+    foreach ( $type_map as $label => $type_slug ) {
+        $cq = new WP_Query( [
+            'post_type'      => 'package',
+            'post_status'    => 'publish',
+            'posts_per_page' => -1,
+            'fields'         => 'ids',
+            'no_found_rows'  => false,
+            'meta_query'     => [ [ 'key' => '_package_type', 'value' => $type_slug, 'compare' => '=' ] ],
+        ] );
+        $cnt = $cq->found_posts;
+        wp_reset_postdata();
+        $pkg_tiles_data[] = [
+            $label,
+            $cnt ? $cnt . ' Package' . ( $cnt !== 1 ? 's' : '' ) : '',
+            home_url( '/packages/?package_type=' . $type_slug ),
+            '',
+        ];
+    }
+}
+
+$pkg_tile_colors = [ '#2D5016', '#5C1A4A', '#1A3A5C', '#5C3A1A', '#1A5C4A', '#2A1A5C' ];
+?>
 <section class="packages-section">
     <div class="section-inner">
-        <div class="section-label">What We Offer</div>
-        <h2 class="section-heading">Our Packages</h2>
+        <div class="section-label"><?php echo esc_html( $pkg_section_label ); ?></div>
+        <h2 class="section-heading"><?php echo esc_html( $pkg_section_heading ); ?></h2>
 
         <div class="package-tiles-grid">
-
-            <!-- Large tile: Group Tours -->
-            <a href="<?php echo esc_url( home_url( '/packages' ) ); ?>"
-               class="package-tile package-tile--large"
-               style="background-color: #2D5016;">
+            <?php foreach ( $pkg_tiles_data as $idx => $tile ) :
+                $t_name  = $tile[0] ?? '';
+                $t_count = $tile[1] ?? '';
+                $t_url   = $tile[2] ?? home_url( '/packages' );
+                $t_image = $tile[3] ?? '';
+                $t_color = $pkg_tile_colors[ $idx % count( $pkg_tile_colors ) ];
+                $t_class = ( $idx < 2 ) ? 'package-tile package-tile--large' : 'package-tile package-tile--small';
+                $t_style = $t_image
+                    ? 'background-image: url(' . esc_url( $t_image ) . ');'
+                    : 'background-color: ' . esc_attr( $t_color ) . ';';
+            ?>
+            <a href="<?php echo esc_url( $t_url ); ?>"
+               class="<?php echo esc_attr( $t_class ); ?>"
+               style="<?php echo $t_style; ?>">
                 <div class="package-tile__overlay"></div>
                 <div class="package-tile__content">
-                    <span class="package-tile__name">Group Tours</span>
-                    <span class="package-tile__count">24 Packages</span>
+                    <span class="package-tile__name"><?php echo esc_html( $t_name ); ?></span>
+                    <?php if ( $t_count ) : ?>
+                    <span class="package-tile__count"><?php echo esc_html( $t_count ); ?></span>
+                    <?php endif; ?>
                 </div>
             </a>
-
-            <!-- Large tile: Honeymoon -->
-            <a href="<?php echo esc_url( home_url( '/packages/?category=honeymoon' ) ); ?>"
-               class="package-tile package-tile--large"
-               style="background-color: #5C1A4A;">
-                <div class="package-tile__overlay"></div>
-                <div class="package-tile__content">
-                    <span class="package-tile__name">Honeymoon Packages</span>
-                    <span class="package-tile__count">18 Packages</span>
-                </div>
-            </a>
-
-            <!-- Small tile: Solo Trips -->
-            <a href="<?php echo esc_url( home_url( '/packages/?category=solo-trips' ) ); ?>"
-               class="package-tile package-tile--small"
-               style="background-color: #1A3A5C;">
-                <div class="package-tile__overlay"></div>
-                <div class="package-tile__content">
-                    <span class="package-tile__name">Solo Trips</span>
-                    <span class="package-tile__count">12 Packages</span>
-                </div>
-            </a>
-
-            <!-- Small tile: Devotional Tours -->
-            <a href="<?php echo esc_url( home_url( '/packages/?category=devotional' ) ); ?>"
-               class="package-tile package-tile--small"
-               style="background-color: #5C3A1A;">
-                <div class="package-tile__overlay"></div>
-                <div class="package-tile__content">
-                    <span class="package-tile__name">Devotional Tours</span>
-                    <span class="package-tile__count">15 Packages</span>
-                </div>
-            </a>
-
-            <!-- Small tile: Destination Weddings -->
-            <a href="<?php echo esc_url( home_url( '/packages/?category=destination-wedding' ) ); ?>"
-               class="package-tile package-tile--small"
-               style="background-color: #1A5C4A;">
-                <div class="package-tile__overlay"></div>
-                <div class="package-tile__content">
-                    <span class="package-tile__name">Destination Weddings</span>
-                    <span class="package-tile__count">8 Packages</span>
-                </div>
-            </a>
-
-            <!-- Small tile: International -->
-            <a href="<?php echo esc_url( home_url( '/packages/?category=international' ) ); ?>"
-               class="package-tile package-tile--small"
-               style="background-color: #2A1A5C;">
-                <div class="package-tile__overlay"></div>
-                <div class="package-tile__content">
-                    <span class="package-tile__name">International Packages</span>
-                    <span class="package-tile__count">20 Packages</span>
-                </div>
-            </a>
-
+            <?php endforeach; ?>
         </div><!-- /.package-tiles-grid -->
     </div>
 </section>
@@ -221,49 +218,38 @@ $hero_bg_style = $hero_image
 <?php
 $stats = [
     [
-        'number'      => '500+',
-        'label'       => 'Happy Travellers',
-        'description' => 'Memorable journeys created',
-        'acf_number'  => 'stat_1_number',
-        'acf_label'   => 'stat_1_label',
+        'number'      => travzo_get( 'travzo_stat_1_number', '500+' ),
+        'label'       => travzo_get( 'travzo_stat_1_label',  'Happy Travellers' ),
+        'description' => travzo_get( 'travzo_stat_1_description', 'Memorable journeys created' ),
     ],
     [
-        'number'      => '50+',
-        'label'       => 'Destinations',
-        'description' => 'Across India and abroad',
-        'acf_number'  => 'stat_2_number',
-        'acf_label'   => 'stat_2_label',
+        'number'      => travzo_get( 'travzo_stat_2_number', '50+' ),
+        'label'       => travzo_get( 'travzo_stat_2_label',  'Destinations' ),
+        'description' => travzo_get( 'travzo_stat_2_description', 'Across India and abroad' ),
     ],
     [
-        'number'      => '10+',
-        'label'       => 'Years Experience',
-        'description' => 'Of trusted travel expertise',
-        'acf_number'  => 'stat_3_number',
-        'acf_label'   => 'stat_3_label',
+        'number'      => travzo_get( 'travzo_stat_3_number', '10+' ),
+        'label'       => travzo_get( 'travzo_stat_3_label',  'Years Experience' ),
+        'description' => travzo_get( 'travzo_stat_3_description', 'Of trusted travel expertise' ),
     ],
     [
-        'number'      => '100%',
-        'label'       => 'Customised Itineraries',
-        'description' => 'Tailored to your needs',
-        'acf_number'  => 'stat_4_number',
-        'acf_label'   => 'stat_4_label',
+        'number'      => travzo_get( 'travzo_stat_4_number', '100%' ),
+        'label'       => travzo_get( 'travzo_stat_4_label',  'Customised Itineraries' ),
+        'description' => travzo_get( 'travzo_stat_4_description', 'Tailored to your needs' ),
     ],
 ];
 ?>
 <section class="stats-section">
     <div class="stats-inner">
         <?php foreach ( $stats as $index => $stat ) :
-            $number = $stat['number'];
-            $label  = $stat['label'];
-            if ( function_exists( 'get_field' ) ) {
-                $number = get_field( $stat['acf_number'] ) ?: $number;
-                $label  = get_field( $stat['acf_label']  ) ?: $label;
-            }
+            $number      = $stat['number'];
+            $label       = $stat['label'];
+            $description = $stat['description'];
         ?>
         <div class="stat-block">
             <span class="stat-number"><?php echo esc_html( $number ); ?></span>
             <span class="stat-label"><?php echo esc_html( $label ); ?></span>
-            <span class="stat-description"><?php echo esc_html( $stat['description'] ); ?></span>
+            <span class="stat-description"><?php echo esc_html( $description ); ?></span>
         </div>
         <?php if ( $index < count( $stats ) - 1 ) : ?>
             <div class="stat-divider" aria-hidden="true"></div>
@@ -277,16 +263,15 @@ $stats = [
      SECTION 4 – ABOUT SNIPPET
 ════════════════════════════════════════════════════════════════ -->
 <?php
-$about_image_url = '';
-$about_text      = 'Travzo Holidays is a Coimbatore-based travel agency with over a decade of experience crafting unforgettable journeys. From serene backwater cruises in Kerala to sacred Char Dham pilgrimages, we design every itinerary with care, passion, and deep local knowledge — so you can travel with complete peace of mind.';
-
-if ( function_exists( 'get_field' ) ) {
-    $about_img = get_field( 'about_image' );
-    if ( $about_img ) {
-        $about_image_url = is_array( $about_img ) ? esc_url( $about_img['url'] ) : esc_url( $about_img );
-    }
-    $about_text = get_field( 'about_text' ) ?: $about_text;
-}
+$about_label     = travzo_get( 'travzo_about_label',   'WHO WE ARE' );
+$about_heading   = travzo_get( 'travzo_about_heading', 'Your Trusted Travel Partner' );
+$about_image_url = travzo_get( 'travzo_about_image',   '' );
+$about_text      = travzo_get( 'travzo_about_text',    'Travzo Holidays is a Coimbatore-based travel agency with over a decade of experience crafting unforgettable journeys. From serene backwater cruises in Kerala to sacred Char Dham pilgrimages, we design every itinerary with care, passion, and deep local knowledge — so you can travel with complete peace of mind.' );
+$about_feature_1 = travzo_get( 'travzo_about_feat1',   'Handcrafted Itineraries' );
+$about_feature_2 = travzo_get( 'travzo_about_feat2',   'Best Price Guarantee' );
+$about_feature_3 = travzo_get( 'travzo_about_feat3',   '24/7 Support' );
+$about_btn_text  = 'Learn More About Us';
+$about_btn_url   = home_url( '/about' );
 ?>
 <section class="about-snippet">
     <div class="section-inner about-snippet__inner">
@@ -309,33 +294,24 @@ if ( function_exists( 'get_field' ) ) {
 
         <!-- Right: content -->
         <div class="about-snippet__content">
-            <div class="section-label">Who We Are</div>
-            <h2 class="section-heading section-heading--left">Your Trusted Travel Partner</h2>
+            <div class="section-label"><?php echo esc_html( $about_label ); ?></div>
+            <h2 class="section-heading section-heading--left"><?php echo esc_html( $about_heading ); ?></h2>
             <p class="about-snippet__text"><?php echo wp_kses_post( $about_text ); ?></p>
 
             <ul class="about-features">
+                <?php foreach ( [ $about_feature_1, $about_feature_2, $about_feature_3 ] as $feature ) :
+                    if ( ! $feature ) continue; ?>
                 <li class="about-feature">
                     <svg class="about-feature__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <polyline points="20 6 9 17 4 12"/>
                     </svg>
-                    <?php esc_html_e( 'Handcrafted Itineraries', 'travzo' ); ?>
+                    <?php echo esc_html( $feature ); ?>
                 </li>
-                <li class="about-feature">
-                    <svg class="about-feature__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <polyline points="20 6 9 17 4 12"/>
-                    </svg>
-                    <?php esc_html_e( 'Best Price Guarantee', 'travzo' ); ?>
-                </li>
-                <li class="about-feature">
-                    <svg class="about-feature__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <polyline points="20 6 9 17 4 12"/>
-                    </svg>
-                    <?php esc_html_e( '24/7 Support', 'travzo' ); ?>
-                </li>
+                <?php endforeach; ?>
             </ul>
 
-            <a href="<?php echo esc_url( home_url( '/about' ) ); ?>" class="btn btn--navy">
-                Learn More About Us
+            <a href="<?php echo esc_url( $about_btn_url ); ?>" class="btn btn--navy">
+                <?php echo esc_html( $about_btn_text ); ?>
             </a>
         </div>
 
@@ -353,30 +329,34 @@ if ( function_exists( 'get_field' ) ) {
 
         <div class="package-cards-row">
         <?php
-        $pkg_query = new WP_Query( [
+        $trending_query = new WP_Query( [
             'post_type'      => 'package',
             'posts_per_page' => 4,
             'post_status'    => 'publish',
-            'orderby'        => 'date',
-            'order'          => 'DESC',
+            'meta_query'     => [ [ 'key' => '_is_trending', 'value' => '1', 'compare' => '=' ] ],
         ] );
+
+        // Fallback: latest 4 packages if none are flagged trending
+        if ( ! $trending_query->have_posts() ) {
+            $trending_query = new WP_Query( [
+                'post_type'      => 'package',
+                'posts_per_page' => 4,
+                'post_status'    => 'publish',
+                'orderby'        => 'date',
+                'order'          => 'DESC',
+            ] );
+        }
 
         // Star SVG reused per card
         $star_svg = '<svg width="13" height="13" viewBox="0 0 24 24" fill="#C9A227" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
 
-        if ( $pkg_query->have_posts() ) :
-            while ( $pkg_query->have_posts() ) :
-                $pkg_query->the_post();
-                $pkg_type    = '';
-                $destination = '';
-                $duration    = '';
-                $price       = '';
-                if ( function_exists( 'get_field' ) ) {
-                    $pkg_type    = get_field( 'package_type' )  ?: '';
-                    $destination = get_field( 'destinations' )  ?: '';
-                    $duration    = get_field( 'duration' )      ?: '';
-                    $price       = get_field( 'price' )         ?: '';
-                }
+        if ( $trending_query->have_posts() ) :
+            while ( $trending_query->have_posts() ) :
+                $trending_query->the_post();
+                $pkg_type    = get_post_meta( get_the_ID(), '_package_type',         true );
+                $destination = get_post_meta( get_the_ID(), '_package_destinations', true );
+                $duration    = get_post_meta( get_the_ID(), '_package_duration',     true );
+                $price       = get_post_meta( get_the_ID(), '_package_price',        true );
         ?>
             <div class="package-card">
                 <div class="package-card__image-wrap">
@@ -420,7 +400,7 @@ if ( function_exists( 'get_field' ) ) {
             endwhile;
             wp_reset_postdata();
         else :
-            // Placeholder cards when no packages exist
+            // Placeholder cards when no packages published yet
             $placeholders = [
                 [ 'title' => 'Kashmir Paradise Tour',         'dest' => 'Srinagar, Gulmarg, Pahalgam', 'duration' => '6 Days / 5 Nights', 'price' => '₹24,999', 'type' => 'Group Tour',  'color' => '#1A3A5C' ],
                 [ 'title' => 'Kerala Honeymoon Special',      'dest' => 'Munnar, Alleppey, Kovalam',   'duration' => '7 Days / 6 Nights', 'price' => '₹32,999', 'type' => 'Honeymoon',   'color' => '#5C1A4A' ],
@@ -458,60 +438,52 @@ if ( function_exists( 'get_field' ) ) {
 <!-- ════════════════════════════════════════════════════════════════
      SECTION 6 – WHY CHOOSE US
 ════════════════════════════════════════════════════════════════ -->
+<?php
+$why_label   = travzo_get( 'travzo_why_us_label',   'Our Promise' );
+$why_heading = travzo_get( 'travzo_why_us_heading', 'Why Travel With Travzo' );
+$why_tiles   = travzo_parse_lines( travzo_get( 'travzo_why_us_tiles', '' ), 2 );
+
+if ( empty( $why_tiles ) ) {
+    $why_tiles = [
+        [ 'Handcrafted Itineraries', 'Every trip is built around your preferences, pace, and budget — no cookie-cutter packages, just journeys made for you.' ],
+        [ 'Best Price Guarantee',    'We negotiate directly with hotels, airlines, and local operators so you always get the most value for your money.' ],
+        [ '24/7 Dedicated Support',  'Our travel experts are always just a call or WhatsApp message away — before, during, and after your trip.' ],
+        [ 'Expert Local Knowledge',  'Our team has firsthand experience of every destination we offer, giving you authentic insider recommendations.' ],
+        [ 'Visa & Documentation',    'We handle all visa paperwork and travel documentation so you can focus on the excitement of your upcoming trip.' ],
+        [ 'Safe & Reliable Travel',  'All our partners — hotels, transport, guides — are carefully vetted for safety, quality, and reliability.' ],
+    ];
+}
+
+// 6 icons cycling per tile
+$why_icons = [
+    '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#C9A227" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>',
+    '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#C9A227" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>',
+    '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#C9A227" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 18v-6a9 9 0 0118 0v6"/><path d="M21 19a2 2 0 01-2 2h-1a2 2 0 01-2-2v-3a2 2 0 012-2h3zM3 19a2 2 0 002 2h1a2 2 0 002-2v-3a2 2 0 00-2-2H3z"/></svg>',
+    '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#C9A227" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>',
+    '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#C9A227" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>',
+    '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#C9A227" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+];
+?>
 <section class="why-us-section">
     <div class="section-inner">
-        <div class="section-label">Our Promise</div>
-        <h2 class="section-heading">Why Travel With Travzo</h2>
+        <div class="section-label"><?php echo esc_html( $why_label ); ?></div>
+        <h2 class="section-heading"><?php echo esc_html( $why_heading ); ?></h2>
 
         <div class="why-us-blocks">
-
+            <?php foreach ( $why_tiles as $i => $tile ) :
+                $w_title = esc_html( $tile[0] ?? '' );
+                $w_text  = esc_html( $tile[1] ?? '' );
+                $w_icon  = $why_icons[ $i % count( $why_icons ) ];
+            ?>
             <div class="why-us-block">
                 <div class="why-us-block__icon-wrap">
-                    <!-- Compass icon -->
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#C9A227" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <circle cx="12" cy="12" r="10"/>
-                        <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>
-                    </svg>
+                    <?php echo $w_icon; ?>
                 </div>
-                <h3 class="why-us-block__title"><?php esc_html_e( 'Handcrafted Itineraries', 'travzo' ); ?></h3>
-                <p class="why-us-block__text"><?php esc_html_e( 'Every trip is built around your preferences, pace, and budget — no cookie-cutter packages, just journeys made for you.', 'travzo' ); ?></p>
+                <h3 class="why-us-block__title"><?php echo $w_title; ?></h3>
+                <p class="why-us-block__text"><?php echo $w_text; ?></p>
             </div>
-
-            <div class="why-us-block">
-                <div class="why-us-block__icon-wrap">
-                    <!-- Tag/price icon -->
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#C9A227" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/>
-                        <line x1="7" y1="7" x2="7.01" y2="7"/>
-                    </svg>
-                </div>
-                <h3 class="why-us-block__title"><?php esc_html_e( 'Best Price Guarantee', 'travzo' ); ?></h3>
-                <p class="why-us-block__text"><?php esc_html_e( 'We negotiate directly with hotels, airlines, and local operators so you always get the most value for your money.', 'travzo' ); ?></p>
-            </div>
-
-            <div class="why-us-block">
-                <div class="why-us-block__icon-wrap">
-                    <!-- Headset icon -->
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#C9A227" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M3 18v-6a9 9 0 0118 0v6"/>
-                        <path d="M21 19a2 2 0 01-2 2h-1a2 2 0 01-2-2v-3a2 2 0 012-2h3zM3 19a2 2 0 002 2h1a2 2 0 002-2v-3a2 2 0 00-2-2H3z"/>
-                    </svg>
-                </div>
-                <h3 class="why-us-block__title"><?php esc_html_e( '24/7 Dedicated Support', 'travzo' ); ?></h3>
-                <p class="why-us-block__text"><?php esc_html_e( 'Our travel experts are always just a call or WhatsApp message away — before, during, and after your trip.', 'travzo' ); ?></p>
-            </div>
-
+            <?php endforeach; ?>
         </div><!-- /.why-us-blocks -->
-
-        <!-- Accreditation strip -->
-        <div class="accreditation-strip">
-            <span class="accreditation-badge">Thailand Tourism</span>
-            <span class="accreditation-badge">Dubai Tourism</span>
-            <span class="accreditation-badge">Singapore Tourism</span>
-            <span class="accreditation-badge">Maldives Tourism</span>
-            <span class="accreditation-badge">Malaysia Tourism</span>
-            <span class="accreditation-badge">Australia Tourism</span>
-        </div>
 
     </div>
 </section>
@@ -521,33 +493,16 @@ if ( function_exists( 'get_field' ) ) {
      SECTION 7 – TESTIMONIALS
 ════════════════════════════════════════════════════════════════ -->
 <?php
-$testimonials_fallback = [
-    [
-        'quote'         => '"Travzo made our Kashmir honeymoon absolutely magical. Every detail was taken care of — from the shikara ride to the houseboat stay. We didn\'t have to worry about a single thing."',
-        'customer_name' => 'Priya & Arjun Nair',
-        'trip_taken'    => 'Kashmir Honeymoon – 7 Days',
-        'avatar_url'    => '',
-    ],
-    [
-        'quote'         => '"We did the Char Dham Yatra with Travzo and it was a life-changing experience. The team\'s coordination was flawless, and our guide was knowledgeable and caring throughout."',
-        'customer_name' => 'Rajesh Murugan',
-        'trip_taken'    => 'Char Dham Yatra – 12 Days',
-        'avatar_url'    => '',
-    ],
-    [
-        'quote'         => '"Booked a group tour to Rajasthan for 18 people and everything went smoothly. Great hotels, punctual transfers, and the best price we found anywhere. Highly recommend Travzo!"',
-        'customer_name' => 'Sunita Krishnamurthy',
-        'trip_taken'    => 'Rajasthan Group Tour – 8 Days',
-        'avatar_url'    => '',
-    ],
-];
+// cols: [0]=name, [1]=trip, [2]=quote
+$testimonials_raw = get_post_meta( get_the_ID(), '_testimonials', true );
+$testimonials     = travzo_parse_lines( $testimonials_raw, 3 );
 
-$testimonials = $testimonials_fallback;
-if ( function_exists( 'get_field' ) ) {
-    $acf_testimonials = get_field( 'testimonials' );
-    if ( ! empty( $acf_testimonials ) ) {
-        $testimonials = $acf_testimonials;
-    }
+if ( empty( $testimonials ) ) {
+    $testimonials = [
+        [ 'Priya & Arjun Nair',    'Kashmir Honeymoon – 7 Days',       '"Travzo made our Kashmir honeymoon absolutely magical. Every detail was taken care of — from the shikara ride to the houseboat stay. We didn\'t have to worry about a single thing."' ],
+        [ 'Rajesh Murugan',        'Char Dham Yatra – 12 Days',        '"We did the Char Dham Yatra with Travzo and it was a life-changing experience. The team\'s coordination was flawless, and our guide was knowledgeable and caring throughout."' ],
+        [ 'Sunita Krishnamurthy',  'Rajasthan Group Tour – 8 Days',    '"Booked a group tour to Rajasthan for 18 people and everything went smoothly. Great hotels, punctual transfers, and the best price we found anywhere. Highly recommend Travzo!"' ],
+    ];
 }
 
 $star_svg_white = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#C9A227" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
@@ -559,10 +514,10 @@ $star_svg_white = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#C9A227
 
         <div class="testimonials-row">
         <?php foreach ( $testimonials as $t ) :
-            $quote    = is_array( $t ) ? ( $t['quote']         ?? '' ) : '';
-            $name     = is_array( $t ) ? ( $t['customer_name'] ?? '' ) : '';
-            $trip     = is_array( $t ) ? ( $t['trip_taken']    ?? '' ) : '';
-            $avatar   = is_array( $t ) ? ( $t['avatar_url']    ?? '' ) : '';
+            $name     = $t[0] ?? '';
+            $trip     = $t[1] ?? '';
+            $quote    = $t[2] ?? '';
+            $avatar   = '';
             $initials = $name ? strtoupper( substr( $name, 0, 1 ) ) : 'T';
         ?>
             <div class="testimonial-card">
@@ -596,6 +551,14 @@ $star_svg_white = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#C9A227
 <!-- ════════════════════════════════════════════════════════════════
      SECTION 8 – ENQUIRY FORM
 ════════════════════════════════════════════════════════════════ -->
+<?php
+$enq_phone     = travzo_get( 'travzo_phone', '' );
+$enq_email     = travzo_get( 'travzo_email', '' );
+$enq_whatsapp  = travzo_get( 'travzo_whatsapp', '' );
+$enq_hours     = travzo_get( 'travzo_footer_hours', 'Mon – Sat: 9:00 AM – 7:00 PM' );
+$enq_phone_url = $enq_phone ? 'tel:' . preg_replace( '/[^+0-9]/', '', $enq_phone ) : '';
+$enq_wa_url    = $enq_whatsapp ? 'https://wa.me/' . preg_replace( '/[^0-9]/', '', $enq_whatsapp ) : '';
+?>
 <section class="enquiry-section">
     <div class="section-inner enquiry-section__inner">
 
@@ -608,117 +571,36 @@ $star_svg_white = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#C9A227
             </p>
 
             <div class="enquiry-contact-rows">
+                <?php if ( $enq_phone ) : ?>
                 <div class="enquiry-contact-row">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C9A227" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 8.81 19.79 19.79 0 011 2.18 2 2 0 013 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L7.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92v2z"/></svg>
-                    <a href="tel:+91XXXXXXXXXX" class="enquiry-contact-row__text">+91 XXXXX XXXXX</a>
+                    <a href="<?php echo esc_url( $enq_phone_url ); ?>" class="enquiry-contact-row__text"><?php echo esc_html( $enq_phone ); ?></a>
                 </div>
+                <?php endif; ?>
+                <?php if ( $enq_email ) : ?>
                 <div class="enquiry-contact-row">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C9A227" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                    <a href="mailto:hello@travzoholidays.com" class="enquiry-contact-row__text">hello@travzoholidays.com</a>
+                    <a href="mailto:<?php echo esc_attr( $enq_email ); ?>" class="enquiry-contact-row__text"><?php echo esc_html( $enq_email ); ?></a>
                 </div>
+                <?php endif; ?>
+                <?php if ( $enq_whatsapp ) : ?>
                 <div class="enquiry-contact-row">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="#C9A227" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                    <a href="https://wa.me/91XXXXXXXXXX" target="_blank" rel="noopener noreferrer" class="enquiry-contact-row__text">WhatsApp Us</a>
+                    <a href="<?php echo esc_url( $enq_wa_url ); ?>" target="_blank" rel="noopener noreferrer" class="enquiry-contact-row__text">WhatsApp Us</a>
                 </div>
+                <?php endif; ?>
+                <?php if ( $enq_hours ) : ?>
                 <div class="enquiry-contact-row">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C9A227" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    <span class="enquiry-contact-row__text"><?php esc_html_e( 'Mon – Sat: 9:00 AM – 7:00 PM', 'travzo' ); ?></span>
+                    <span class="enquiry-contact-row__text"><?php echo esc_html( $enq_hours ); ?></span>
                 </div>
+                <?php endif; ?>
             </div>
         </div><!-- /.enquiry-info -->
 
         <!-- Right: form card -->
         <div class="enquiry-form-card">
-
-            <?php if ( $enquiry_sent ) : ?>
-                <div class="enquiry-success">
-                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#C9A227" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                    <h3><?php esc_html_e( 'Enquiry Sent!', 'travzo' ); ?></h3>
-                    <p><?php esc_html_e( 'Thank you! Our team will get back to you within 24 hours.', 'travzo' ); ?></p>
-                </div>
-            <?php else : ?>
-                <?php if ( $enquiry_error ) : ?>
-                    <div class="enquiry-error">
-                        <?php esc_html_e( 'Something went wrong. Please check your details and try again.', 'travzo' ); ?>
-                    </div>
-                <?php endif; ?>
-
-                <h3 class="enquiry-form-card__title"><?php esc_html_e( 'Send Us an Enquiry', 'travzo' ); ?></h3>
-
-                <form class="enquiry-form" method="POST" action="" novalidate>
-                    <?php wp_nonce_field( 'travzo_enquiry', 'travzo_enquiry_nonce' ); ?>
-
-                    <div class="form-row form-row--2col">
-                        <div class="form-field">
-                            <label for="enquiry_name"><?php esc_html_e( 'Your Name', 'travzo' ); ?> <span aria-hidden="true">*</span></label>
-                            <input type="text" id="enquiry_name" name="enquiry_name" required
-                                   placeholder="<?php esc_attr_e( 'e.g. Ramesh Kumar', 'travzo' ); ?>"
-                                   value="<?php echo isset( $_POST['enquiry_name'] ) ? esc_attr( sanitize_text_field( wp_unslash( $_POST['enquiry_name'] ) ) ) : ''; ?>">
-                        </div>
-                        <div class="form-field">
-                            <label for="enquiry_city"><?php esc_html_e( 'City', 'travzo' ); ?></label>
-                            <input type="text" id="enquiry_city" name="enquiry_city"
-                                   placeholder="<?php esc_attr_e( 'e.g. Coimbatore', 'travzo' ); ?>"
-                                   value="<?php echo isset( $_POST['enquiry_city'] ) ? esc_attr( sanitize_text_field( wp_unslash( $_POST['enquiry_city'] ) ) ) : ''; ?>">
-                        </div>
-                    </div>
-
-                    <div class="form-row form-row--2col">
-                        <div class="form-field">
-                            <label for="enquiry_email"><?php esc_html_e( 'Email Address', 'travzo' ); ?> <span aria-hidden="true">*</span></label>
-                            <input type="email" id="enquiry_email" name="enquiry_email" required
-                                   placeholder="<?php esc_attr_e( 'you@example.com', 'travzo' ); ?>"
-                                   value="<?php echo isset( $_POST['enquiry_email'] ) ? esc_attr( sanitize_email( wp_unslash( $_POST['enquiry_email'] ) ) ) : ''; ?>">
-                        </div>
-                        <div class="form-field">
-                            <label for="enquiry_phone"><?php esc_html_e( 'Phone Number', 'travzo' ); ?></label>
-                            <input type="tel" id="enquiry_phone" name="enquiry_phone"
-                                   placeholder="<?php esc_attr_e( '+91 XXXXX XXXXX', 'travzo' ); ?>"
-                                   value="<?php echo isset( $_POST['enquiry_phone'] ) ? esc_attr( sanitize_text_field( wp_unslash( $_POST['enquiry_phone'] ) ) ) : ''; ?>">
-                        </div>
-                    </div>
-
-                    <div class="form-row form-row--2col">
-                        <div class="form-field">
-                            <label for="enquiry_destination"><?php esc_html_e( 'Preferred Destination', 'travzo' ); ?></label>
-                            <input type="text" id="enquiry_destination" name="enquiry_destination"
-                                   placeholder="<?php esc_attr_e( 'e.g. Kashmir', 'travzo' ); ?>"
-                                   value="<?php echo isset( $_POST['enquiry_destination'] ) ? esc_attr( sanitize_text_field( wp_unslash( $_POST['enquiry_destination'] ) ) ) : ''; ?>">
-                        </div>
-                        <div class="form-field">
-                            <label for="enquiry_date"><?php esc_html_e( 'Travel Date', 'travzo' ); ?></label>
-                            <input type="date" id="enquiry_date" name="enquiry_date"
-                                   min="<?php echo esc_attr( gmdate( 'Y-m-d' ) ); ?>"
-                                   value="<?php echo isset( $_POST['enquiry_date'] ) ? esc_attr( sanitize_text_field( wp_unslash( $_POST['enquiry_date'] ) ) ) : ''; ?>">
-                        </div>
-                    </div>
-
-                    <div class="form-row form-row--2col">
-                        <div class="form-field">
-                            <label for="enquiry_people"><?php esc_html_e( 'Number of People', 'travzo' ); ?></label>
-                            <input type="number" id="enquiry_people" name="enquiry_people" min="1" max="100"
-                                   placeholder="<?php esc_attr_e( '2', 'travzo' ); ?>"
-                                   value="<?php echo isset( $_POST['enquiry_people'] ) ? esc_attr( absint( wp_unslash( $_POST['enquiry_people'] ) ) ) : ''; ?>">
-                        </div>
-                        <div class="form-field">
-                            <label for="enquiry_trip_type"><?php esc_html_e( 'Trip Type', 'travzo' ); ?></label>
-                            <select id="enquiry_trip_type" name="enquiry_trip_type">
-                                <option value=""><?php esc_html_e( 'Select Type', 'travzo' ); ?></option>
-                                <option value="Group Tour"          <?php selected( ( $_POST['enquiry_trip_type'] ?? '' ), 'Group Tour' ); ?>><?php esc_html_e( 'Group Tour', 'travzo' ); ?></option>
-                                <option value="Honeymoon"           <?php selected( ( $_POST['enquiry_trip_type'] ?? '' ), 'Honeymoon' ); ?>><?php esc_html_e( 'Honeymoon', 'travzo' ); ?></option>
-                                <option value="Solo Trip"           <?php selected( ( $_POST['enquiry_trip_type'] ?? '' ), 'Solo Trip' ); ?>><?php esc_html_e( 'Solo Trip', 'travzo' ); ?></option>
-                                <option value="Devotional"          <?php selected( ( $_POST['enquiry_trip_type'] ?? '' ), 'Devotional' ); ?>><?php esc_html_e( 'Devotional', 'travzo' ); ?></option>
-                                <option value="Destination Wedding" <?php selected( ( $_POST['enquiry_trip_type'] ?? '' ), 'Destination Wedding' ); ?>><?php esc_html_e( 'Destination Wedding', 'travzo' ); ?></option>
-                                <option value="International"       <?php selected( ( $_POST['enquiry_trip_type'] ?? '' ), 'International' ); ?>><?php esc_html_e( 'International', 'travzo' ); ?></option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <button type="submit" class="btn btn--gold btn--full">
-                        <?php esc_html_e( 'Send Enquiry', 'travzo' ); ?>
-                    </button>
-                </form>
-            <?php endif; ?>
+            <?php travzo_render_form( 'travzo_form_enquiry', travzo_default_enquiry_form() ); ?>
         </div><!-- /.enquiry-form-card -->
 
     </div>
@@ -739,9 +621,19 @@ $star_svg_white = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#C9A227
             'post_type'      => 'post',
             'posts_per_page' => 3,
             'post_status'    => 'publish',
-            'orderby'        => 'date',
-            'order'          => 'DESC',
+            'meta_query'     => [ [ 'key' => '_is_featured_blog', 'value' => '1', 'compare' => '=' ] ],
         ] );
+
+        // Fallback: latest 3 posts if none are flagged featured
+        if ( ! $blog_query->have_posts() ) {
+            $blog_query = new WP_Query( [
+                'post_type'      => 'post',
+                'posts_per_page' => 3,
+                'post_status'    => 'publish',
+                'orderby'        => 'date',
+                'order'          => 'DESC',
+            ] );
+        }
 
         if ( $blog_query->have_posts() ) :
             while ( $blog_query->have_posts() ) :
@@ -813,6 +705,11 @@ $star_svg_white = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#C9A227
 <!-- ════════════════════════════════════════════════════════════════
      SECTION 10 – NEWSLETTER
 ════════════════════════════════════════════════════════════════ -->
+<?php
+$nl_heading     = travzo_get( 'travzo_newsletter_heading', 'Get Travel Deals in Your Inbox' );
+$nl_subtext     = travzo_get( 'travzo_newsletter_subtext', 'Subscribe and be the first to know about our exclusive offers.' );
+$nl_button_text = 'Subscribe';
+?>
 <section class="newsletter-section">
     <div class="newsletter-inner">
 
@@ -823,18 +720,19 @@ $star_svg_white = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#C9A227
             </svg>
         </div>
 
-        <h2 class="newsletter-heading"><?php esc_html_e( 'Get Travel Deals in Your Inbox', 'travzo' ); ?></h2>
-        <p class="newsletter-subtext"><?php esc_html_e( 'Subscribe and be the first to know about our exclusive offers.', 'travzo' ); ?></p>
+        <h2 class="newsletter-heading"><?php echo esc_html( $nl_heading ); ?></h2>
+        <p class="newsletter-subtext"><?php echo esc_html( $nl_subtext ); ?></p>
 
-        <form class="newsletter-form" action="#" method="POST">
-            <?php wp_nonce_field( 'travzo_newsletter', 'travzo_newsletter_nonce' ); ?>
-            <div class="newsletter-form__pill">
-                <label for="newsletter-email" class="screen-reader-text"><?php esc_html_e( 'Your email address', 'travzo' ); ?></label>
-                <input type="email" id="newsletter-email" name="newsletter_email" required
-                       placeholder="<?php esc_attr_e( 'Enter your email address…', 'travzo' ); ?>">
-                <button type="submit"><?php esc_html_e( 'Subscribe', 'travzo' ); ?></button>
-            </div>
-        </form>
+        <?php
+        $nl_fallback = '<form class="newsletter-form" action="#" method="POST">'
+            . wp_nonce_field( 'travzo_newsletter', 'travzo_newsletter_nonce', true, false )
+            . '<div class="newsletter-form__pill">'
+            . '<label for="newsletter-email" class="screen-reader-text">Your email address</label>'
+            . '<input type="email" id="newsletter-email" name="newsletter_email" required placeholder="Enter your email address…">'
+            . '<button type="submit">Subscribe</button>'
+            . '</div></form>';
+        travzo_render_form( 'travzo_form_newsletter', $nl_fallback );
+        ?>
 
     </div>
 </section>

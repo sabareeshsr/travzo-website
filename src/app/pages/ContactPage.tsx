@@ -1,5 +1,5 @@
 
-import { Link } from 'react-router';
+`import { Link } from 'react-router';
 import { Phone, Mail, MapPin, Clock, MessageSquare } from 'lucide-react';
 import { Newsletter } from '../components/Newsletter';
 

@@ -1,22 +1,12 @@
 <?php
-/* ── ACF Options: Header / Utility-bar settings ────────────────────────── */
-$hdr_tagline   = "Tamil Nadu's Most Trusted Travel Partner";
-$hdr_email     = 'hello@travzoholidays.com';
-$hdr_phone     = '+91 XXXXX XXXXX';
-$hdr_instagram = '#';
-$hdr_facebook  = '#';
-$hdr_youtube   = '#';
-$hdr_whatsapp  = '';
-
-if ( function_exists( 'get_field' ) ) {
-    $hdr_tagline   = get_field( 'utility_bar_text', 'option' ) ?: $hdr_tagline;
-    $hdr_email     = get_field( 'site_email',        'option' ) ?: $hdr_email;
-    $hdr_phone     = get_field( 'site_phone',        'option' ) ?: $hdr_phone;
-    $hdr_instagram = get_field( 'site_instagram',    'option' ) ?: $hdr_instagram;
-    $hdr_facebook  = get_field( 'site_facebook',     'option' ) ?: $hdr_facebook;
-    $hdr_youtube   = get_field( 'site_youtube',      'option' ) ?: $hdr_youtube;
-    $hdr_whatsapp  = get_field( 'site_whatsapp',     'option' ) ?: $hdr_whatsapp;
-}
+/* ── Customizer: Header / Utility-bar settings ──────────────────────────── */
+$hdr_tagline   = travzo_get( 'travzo_utility_text', "Tamil Nadu's Most Trusted Travel Partner" );
+$hdr_email     = travzo_get( 'travzo_email',     'hello@travzoholidays.com' );
+$hdr_phone     = travzo_get( 'travzo_phone',     '+91 XXXXX XXXXX' );
+$hdr_instagram = travzo_get( 'travzo_instagram', '#' );
+$hdr_facebook  = travzo_get( 'travzo_facebook',  '#' );
+$hdr_youtube   = travzo_get( 'travzo_youtube',   '#' );
+$hdr_whatsapp  = travzo_get( 'travzo_whatsapp',  '' );
 
 // Derived URLs
 $hdr_phone_url    = 'tel:' . preg_replace( '/[^+0-9]/', '', $hdr_phone );
@@ -101,13 +91,13 @@ $hdr_whatsapp_url = $hdr_whatsapp
 
             <!-- Logo -->
             <div class="main-nav__logo">
-                <a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="logo-link">
-                    <?php if ( has_custom_logo() ) : ?>
-                        <?php the_custom_logo(); ?>
-                    <?php else : ?>
-                        <span class="logo-text"><?php bloginfo( 'name' ); ?></span>
-                    <?php endif; ?>
-                </a>
+                <?php if ( has_custom_logo() ) : ?>
+                    <?php the_custom_logo(); ?>
+                <?php else : ?>
+                    <a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="site-logo-text">
+                        <?php bloginfo( 'name' ); ?>
+                    </a>
+                <?php endif; ?>
             </div>
 
             <!-- Primary Navigation -->
@@ -127,14 +117,28 @@ $hdr_whatsapp_url = $hdr_whatsapp
                         <div class="mega-panel mega-panel--4col" role="region" aria-label="Group Tours destinations">
                             <div class="mega-panel__inner">
                                 <div class="mega-col">
-                                    <h4 class="mega-col__heading">North India</h4>
+                                    <h4 class="mega-col__heading">Group Tours</h4>
                                     <ul>
-                                        <li><a href="#">Kashmir</a></li>
-                                        <li><a href="#">Himachal Pradesh</a></li>
-                                        <li><a href="#">Uttarakhand</a></li>
-                                        <li><a href="#">Rajasthan</a></li>
-                                        <li><a href="#">Delhi Agra Jaipur</a></li>
-                                        <li><a href="#">Ladakh</a></li>
+                                        <?php
+                                        $mega_group = new WP_Query( [
+                                            'post_type'      => 'package',
+                                            'posts_per_page' => 8,
+                                            'post_status'    => 'publish',
+                                            'meta_query'     => [ [ 'key' => '_package_type', 'value' => 'Group Tour', 'compare' => 'LIKE' ] ],
+                                        ] );
+                                        if ( $mega_group->have_posts() ) :
+                                            while ( $mega_group->have_posts() ) : $mega_group->the_post(); ?>
+                                        <li><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></li>
+                                        <?php endwhile; wp_reset_postdata();
+                                        else : ?>
+                                        <li><a href="#">Kerala Group Tour</a></li>
+                                        <li><a href="#">Kashmir Group Tour</a></li>
+                                        <li><a href="#">Rajasthan Group Tour</a></li>
+                                        <li><a href="#">Northeast India Tour</a></li>
+                                        <li><a href="#">Andaman Islands Tour</a></li>
+                                        <li><a href="#">Thailand Group Tour</a></li>
+                                        <?php endif; ?>
+                                        <li class="mega-viewmore"><a href="<?php echo esc_url( home_url( '/packages?type=Group+Tour' ) ); ?>">View More &rarr;</a></li>
                                     </ul>
                                 </div>
                                 <div class="mega-col">
@@ -149,14 +153,14 @@ $hdr_whatsapp_url = $hdr_whatsapp
                                     </ul>
                                 </div>
                                 <div class="mega-col">
-                                    <h4 class="mega-col__heading">East &amp; Northeast</h4>
+                                    <h4 class="mega-col__heading">North India</h4>
                                     <ul>
-                                        <li><a href="#">Northeast India</a></li>
-                                        <li><a href="#">Sikkim &amp; Darjeeling</a></li>
-                                        <li><a href="#">Bhutan</a></li>
-                                        <li><a href="#">Odisha Heritage</a></li>
-                                        <li><a href="#">Sundarbans</a></li>
-                                        <li><a href="#">Nepal</a></li>
+                                        <li><a href="#">Kashmir</a></li>
+                                        <li><a href="#">Himachal Pradesh</a></li>
+                                        <li><a href="#">Uttarakhand</a></li>
+                                        <li><a href="#">Rajasthan</a></li>
+                                        <li><a href="#">Delhi Agra Jaipur</a></li>
+                                        <li><a href="#">Ladakh</a></li>
                                     </ul>
                                 </div>
                                 <div class="mega-col">
@@ -183,14 +187,28 @@ $hdr_whatsapp_url = $hdr_whatsapp
                         <div class="mega-panel mega-panel--4col" role="region" aria-label="Honeymoon destinations">
                             <div class="mega-panel__inner">
                                 <div class="mega-col">
-                                    <h4 class="mega-col__heading">Romantic Getaways</h4>
+                                    <h4 class="mega-col__heading">Honeymoon Packages</h4>
                                     <ul>
+                                        <?php
+                                        $mega_honey = new WP_Query( [
+                                            'post_type'      => 'package',
+                                            'posts_per_page' => 8,
+                                            'post_status'    => 'publish',
+                                            'meta_query'     => [ [ 'key' => '_package_type', 'value' => 'Honeymoon', 'compare' => 'LIKE' ] ],
+                                        ] );
+                                        if ( $mega_honey->have_posts() ) :
+                                            while ( $mega_honey->have_posts() ) : $mega_honey->the_post(); ?>
+                                        <li><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></li>
+                                        <?php endwhile; wp_reset_postdata();
+                                        else : ?>
+                                        <li><a href="#">Maldives Honeymoon</a></li>
                                         <li><a href="#">Kerala Backwaters</a></li>
-                                        <li><a href="#">Kashmir</a></li>
-                                        <li><a href="#">Coorg</a></li>
-                                        <li><a href="#">Andaman &amp; Nicobar</a></li>
-                                        <li><a href="#">Pondicherry</a></li>
-                                        <li><a href="#">Goa</a></li>
+                                        <li><a href="#">Kashmir Honeymoon</a></li>
+                                        <li><a href="#">Bali Honeymoon</a></li>
+                                        <li><a href="#">Andaman Honeymoon</a></li>
+                                        <li><a href="#">Coorg Honeymoon</a></li>
+                                        <?php endif; ?>
+                                        <li class="mega-viewmore"><a href="<?php echo esc_url( home_url( '/packages?type=Honeymoon' ) ); ?>">View More &rarr;</a></li>
                                     </ul>
                                 </div>
                                 <div class="mega-col">
@@ -239,14 +257,28 @@ $hdr_whatsapp_url = $hdr_whatsapp
                         <div class="mega-panel mega-panel--3col" role="region" aria-label="Devotional tour destinations">
                             <div class="mega-panel__inner">
                                 <div class="mega-col">
-                                    <h4 class="mega-col__heading">Himalayan Pilgrimages</h4>
+                                    <h4 class="mega-col__heading">Devotional Tours</h4>
                                     <ul>
+                                        <?php
+                                        $mega_devot = new WP_Query( [
+                                            'post_type'      => 'package',
+                                            'posts_per_page' => 8,
+                                            'post_status'    => 'publish',
+                                            'meta_query'     => [ [ 'key' => '_package_type', 'value' => 'Devotional', 'compare' => 'LIKE' ] ],
+                                        ] );
+                                        if ( $mega_devot->have_posts() ) :
+                                            while ( $mega_devot->have_posts() ) : $mega_devot->the_post(); ?>
+                                        <li><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></li>
+                                        <?php endwhile; wp_reset_postdata();
+                                        else : ?>
                                         <li><a href="#">Char Dham Yatra</a></li>
-                                        <li><a href="#">Kedarnath</a></li>
-                                        <li><a href="#">Badrinath</a></li>
+                                        <li><a href="#">Tirupati Tour</a></li>
                                         <li><a href="#">Vaishno Devi</a></li>
-                                        <li><a href="#">Haridwar &amp; Rishikesh</a></li>
-                                        <li><a href="#">Amarnath Yatra</a></li>
+                                        <li><a href="#">Rameswaram</a></li>
+                                        <li><a href="#">Shirdi Tour</a></li>
+                                        <li><a href="#">Murugan Temples Circuit</a></li>
+                                        <?php endif; ?>
+                                        <li class="mega-viewmore"><a href="<?php echo esc_url( home_url( '/packages?type=Devotional' ) ); ?>">View More &rarr;</a></li>
                                     </ul>
                                 </div>
                                 <div class="mega-col">
@@ -284,13 +316,28 @@ $hdr_whatsapp_url = $hdr_whatsapp
                         <div class="mega-panel mega-panel--3col" role="region" aria-label="Destination wedding locations">
                             <div class="mega-panel__inner">
                                 <div class="mega-col">
-                                    <h4 class="mega-col__heading">Royal Rajasthan</h4>
+                                    <h4 class="mega-col__heading">Destination Weddings</h4>
                                     <ul>
-                                        <li><a href="#">Udaipur</a></li>
-                                        <li><a href="#">Jaipur</a></li>
-                                        <li><a href="#">Jodhpur</a></li>
-                                        <li><a href="#">Jaisalmer</a></li>
-                                        <li><a href="#">Ranthambore</a></li>
+                                        <?php
+                                        $mega_wed = new WP_Query( [
+                                            'post_type'      => 'package',
+                                            'posts_per_page' => 8,
+                                            'post_status'    => 'publish',
+                                            'meta_query'     => [ [ 'key' => '_package_type', 'value' => 'Destination Wedding', 'compare' => 'LIKE' ] ],
+                                        ] );
+                                        if ( $mega_wed->have_posts() ) :
+                                            while ( $mega_wed->have_posts() ) : $mega_wed->the_post(); ?>
+                                        <li><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></li>
+                                        <?php endwhile; wp_reset_postdata();
+                                        else : ?>
+                                        <li><a href="#">Udaipur Wedding</a></li>
+                                        <li><a href="#">Jaipur Wedding</a></li>
+                                        <li><a href="#">Goa Beach Wedding</a></li>
+                                        <li><a href="#">Kerala Wedding</a></li>
+                                        <li><a href="#">Ooty Wedding</a></li>
+                                        <li><a href="#">Maldives Wedding</a></li>
+                                        <?php endif; ?>
+                                        <li class="mega-viewmore"><a href="<?php echo esc_url( home_url( '/packages?type=Destination+Wedding' ) ); ?>">View More &rarr;</a></li>
                                     </ul>
                                 </div>
                                 <div class="mega-col">
@@ -326,13 +373,28 @@ $hdr_whatsapp_url = $hdr_whatsapp
                         <div class="mega-panel mega-panel--3col" role="region" aria-label="Solo trip destinations">
                             <div class="mega-panel__inner">
                                 <div class="mega-col">
-                                    <h4 class="mega-col__heading">Adventure &amp; Trek</h4>
+                                    <h4 class="mega-col__heading">Solo Trips</h4>
                                     <ul>
-                                        <li><a href="#">Ladakh</a></li>
+                                        <?php
+                                        $mega_solo = new WP_Query( [
+                                            'post_type'      => 'package',
+                                            'posts_per_page' => 8,
+                                            'post_status'    => 'publish',
+                                            'meta_query'     => [ [ 'key' => '_package_type', 'value' => 'Solo Trip', 'compare' => 'LIKE' ] ],
+                                        ] );
+                                        if ( $mega_solo->have_posts() ) :
+                                            while ( $mega_solo->have_posts() ) : $mega_solo->the_post(); ?>
+                                        <li><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></li>
+                                        <?php endwhile; wp_reset_postdata();
+                                        else : ?>
+                                        <li><a href="#">Ladakh Solo Trip</a></li>
                                         <li><a href="#">Spiti Valley</a></li>
-                                        <li><a href="#">Manali</a></li>
-                                        <li><a href="#">Rishikesh &amp; Haridwar</a></li>
-                                        <li><a href="#">Valley of Flowers</a></li>
+                                        <li><a href="#">Rishikesh</a></li>
+                                        <li><a href="#">Rajasthan Solo</a></li>
+                                        <li><a href="#">Andaman Solo</a></li>
+                                        <li><a href="#">Northeast India</a></li>
+                                        <?php endif; ?>
+                                        <li class="mega-viewmore"><a href="<?php echo esc_url( home_url( '/packages?type=Solo+Trip' ) ); ?>">View More &rarr;</a></li>
                                     </ul>
                                 </div>
                                 <div class="mega-col">
@@ -357,6 +419,10 @@ $hdr_whatsapp_url = $hdr_whatsapp
                                 </div>
                             </div>
                         </div>
+                    </li>
+
+                    <li class="nav-item" role="none">
+                        <a href="<?php echo esc_url( home_url( '/blog' ) ); ?>" class="nav-link" role="menuitem">Blog</a>
                     </li>
 
                     <li class="nav-item" role="none">
@@ -401,13 +467,13 @@ $hdr_whatsapp_url = $hdr_whatsapp
          aria-hidden="true">
 
         <div class="mobile-drawer__header">
-            <a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="logo-link">
-                <?php if ( has_custom_logo() ) : ?>
-                    <?php the_custom_logo(); ?>
-                <?php else : ?>
-                    <span class="logo-text"><?php bloginfo( 'name' ); ?></span>
-                <?php endif; ?>
-            </a>
+            <?php if ( has_custom_logo() ) : ?>
+                <?php the_custom_logo(); ?>
+            <?php else : ?>
+                <a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="site-logo-text">
+                    <?php bloginfo( 'name' ); ?>
+                </a>
+            <?php endif; ?>
             <button class="mobile-drawer__close" id="drawer-close"
                     aria-label="<?php esc_attr_e( 'Close navigation', 'travzo' ); ?>">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -512,6 +578,7 @@ $hdr_whatsapp_url = $hdr_whatsapp
                     </ul>
                 </li>
 
+                <li><a href="<?php echo esc_url( home_url( '/blog' ) ); ?>"><?php esc_html_e( 'Blog', 'travzo' ); ?></a></li>
                 <li><a href="<?php echo esc_url( home_url( '/about' ) ); ?>"><?php esc_html_e( 'About', 'travzo' ); ?></a></li>
                 <li><a href="<?php echo esc_url( home_url( '/contact' ) ); ?>"><?php esc_html_e( 'Contact', 'travzo' ); ?></a></li>
 

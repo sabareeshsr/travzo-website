@@ -15,33 +15,26 @@ $f_sort        = isset( $_GET['sort'] )        ? sanitize_text_field( wp_unslash
 $paged    = max( 1, get_query_var( 'paged' ) );
 $meta_query = [ 'relation' => 'AND' ];
 
-// Filter: Package Type → ACF text field 'package_type'
+// Filter: Package Type → native meta key '_package_type'
 if ( $f_type ) {
     $meta_query[] = [
-        'key'     => 'package_type',
+        'key'     => '_package_type',
         'value'   => $f_type,
         'compare' => 'LIKE',
     ];
 }
 
-// Filter: Destination → ACF text field 'destinations'
+// Filter: Destination → native meta key '_package_destinations'
 if ( $f_destination ) {
     $meta_query[] = [
-        'key'     => 'destinations',
+        'key'     => '_package_destinations',
         'value'   => $f_destination,
         'compare' => 'LIKE',
     ];
 }
 
-// Filter: Duration → ACF text field 'duration' (stored as e.g. "6 Days / 5 Nights")
+// Filter: Duration → native meta key '_package_duration'
 if ( $f_duration ) {
-    $duration_map = [
-        '3-5'  => [ 3, 5 ],
-        '6-8'  => [ 6, 8 ],
-        '9-12' => [ 9, 12 ],
-        '13+'  => [ 13, 99 ],
-    ];
-    // Simple LIKE match on the duration label string
     $dur_label_map = [
         '3-5'  => '3-5 Days',
         '6-8'  => '6-8 Days',
@@ -50,20 +43,20 @@ if ( $f_duration ) {
     ];
     if ( isset( $dur_label_map[ $f_duration ] ) ) {
         $meta_query[] = [
-            'key'     => 'duration',
+            'key'     => '_package_duration',
             'value'   => $dur_label_map[ $f_duration ],
             'compare' => 'LIKE',
         ];
     }
 }
 
-// Filter: Budget → ACF text field 'price' (stored as numeric string e.g. "24999")
+// Filter: Budget → native meta key '_package_price' (stored as numeric string)
 if ( $f_budget ) {
     $budget_clauses = [
-        'under-15000'    => [ 'key' => 'price', 'value' => 15000,        'compare' => '<',        'type' => 'NUMERIC' ],
-        '15000-30000'    => [ 'key' => 'price', 'value' => [ 15000, 30000 ], 'compare' => 'BETWEEN', 'type' => 'NUMERIC' ],
-        '30000-60000'    => [ 'key' => 'price', 'value' => [ 30000, 60000 ], 'compare' => 'BETWEEN', 'type' => 'NUMERIC' ],
-        'above-60000'    => [ 'key' => 'price', 'value' => 60000,        'compare' => '>',        'type' => 'NUMERIC' ],
+        'under-15000'  => [ 'key' => '_package_price', 'value' => 15000,             'compare' => '<',        'type' => 'NUMERIC' ],
+        '15000-30000'  => [ 'key' => '_package_price', 'value' => [ 15000, 30000 ],  'compare' => 'BETWEEN',  'type' => 'NUMERIC' ],
+        '30000-60000'  => [ 'key' => '_package_price', 'value' => [ 30000, 60000 ],  'compare' => 'BETWEEN',  'type' => 'NUMERIC' ],
+        'above-60000'  => [ 'key' => '_package_price', 'value' => 60000,             'compare' => '>',        'type' => 'NUMERIC' ],
     ];
     if ( isset( $budget_clauses[ $f_budget ] ) ) {
         $meta_query[] = $budget_clauses[ $f_budget ];
@@ -79,17 +72,17 @@ switch ( $f_sort ) {
     case 'price-asc':
         $orderby       = 'meta_value_num';
         $order         = 'ASC';
-        $meta_key_sort = 'price';
+        $meta_key_sort = '_package_price';
         break;
     case 'price-desc':
         $orderby       = 'meta_value_num';
         $order         = 'DESC';
-        $meta_key_sort = 'price';
+        $meta_key_sort = '_package_price';
         break;
     case 'duration-asc':
         $orderby       = 'meta_value_num';
         $order         = 'ASC';
-        $meta_key_sort = 'duration';
+        $meta_key_sort = '_package_duration';
         break;
 }
 
@@ -125,37 +118,40 @@ get_header();
 <!-- ════════════════════════════════════════════════════════════
      SECTION 1 – PAGE HERO
 ════════════════════════════════════════════════════════════ -->
-<section class="page-hero">
+<?php
+$_pkg_hero_img   = travzo_get( 'travzo_packages_hero_image', '' );
+$_pkg_hero_style = $_pkg_hero_img ? 'background-image:url(' . esc_url( $_pkg_hero_img ) . ');background-size:cover;background-position:center' : '';
+?>
+<section class="page-hero"<?php if ( $_pkg_hero_style ) : ?> style="<?php echo $_pkg_hero_style; ?>"<?php endif; ?>>
     <div class="page-hero-overlay"></div>
 
     <div class="page-hero__content">
 
-        <!-- Breadcrumb -->
         <nav class="page-hero__breadcrumb" aria-label="<?php esc_attr_e( 'Breadcrumb', 'travzo' ); ?>">
             <a href="<?php echo esc_url( home_url( '/' ) ); ?>"><?php esc_html_e( 'Home', 'travzo' ); ?></a>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
             <span><?php esc_html_e( 'Packages', 'travzo' ); ?></span>
         </nav>
 
-        <h1 class="page-hero__heading"><?php esc_html_e( 'Our Packages', 'travzo' ); ?></h1>
+        <h1 class="page-hero__heading"><?php echo esc_html( travzo_get( 'travzo_packages_hero_title', 'Our Packages' ) ); ?></h1>
 
         <p class="page-hero__subtext">
-            <?php esc_html_e( 'Explore our handcrafted travel experiences across India and the world', 'travzo' ); ?>
+            <?php echo esc_html( travzo_get( 'travzo_packages_hero_desc', 'Explore our handcrafted travel experiences across India and the world' ) ); ?>
         </p>
 
         <!-- Stat pills -->
         <div class="page-hero__pills">
             <span class="hero-pill">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg>
-                <?php esc_html_e( '100+ Packages Available', 'travzo' ); ?>
+                <?php echo esc_html( travzo_get( 'travzo_packages_hero_pill1', '100+ Packages Available' ) ); ?>
             </span>
             <span class="hero-pill">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                <?php esc_html_e( '3 to 14 Days', 'travzo' ); ?>
+                <?php echo esc_html( travzo_get( 'travzo_packages_hero_pill2', '3 to 14 Days' ) ); ?>
             </span>
             <span class="hero-pill">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-                <?php esc_html_e( 'Starting ₹15,000', 'travzo' ); ?>
+                <?php echo esc_html( travzo_get( 'travzo_packages_hero_pill3', 'Starting ₹15,000' ) ); ?>
             </span>
         </div>
 
@@ -177,28 +173,31 @@ get_header();
             <select id="filter-destination" name="destination" class="filter-select" aria-label="<?php esc_attr_e( 'Filter by destination', 'travzo' ); ?>">
                 <option value=""><?php esc_html_e( 'All Destinations', 'travzo' ); ?></option>
                 <?php
-                $destinations = [
-                    'india'       => 'India',
-                    'international' => 'International',
-                    'Bali'        => 'Bali',
-                    'Thailand'    => 'Thailand',
-                    'Singapore'   => 'Singapore',
-                    'Malaysia'    => 'Malaysia',
-                    'Dubai'       => 'Dubai',
-                    'Europe'      => 'Europe',
-                    'Kashmir'     => 'Kashmir',
-                    'Kerala'      => 'Kerala',
-                    'Goa'         => 'Goa',
-                    'Rajasthan'   => 'Rajasthan',
-                    'Maldives'    => 'Maldives',
-                    'Andaman'     => 'Andaman',
-                ];
-                foreach ( $destinations as $val => $label ) {
+                // Auto-fetch all unique destinations from live package meta
+                $dest_posts = get_posts( [
+                    'post_type'      => 'package',
+                    'post_status'    => 'publish',
+                    'posts_per_page' => -1,
+                    'fields'         => 'ids',
+                ] );
+                $all_dests = [];
+                foreach ( $dest_posts as $pid ) {
+                    $raw = get_post_meta( $pid, '_package_destinations', true );
+                    if ( $raw ) {
+                        foreach ( array_map( 'trim', explode( ',', $raw ) ) as $d ) {
+                            if ( $d ) {
+                                $all_dests[ $d ] = $d;
+                            }
+                        }
+                    }
+                }
+                ksort( $all_dests );
+                foreach ( $all_dests as $dest ) {
                     printf(
                         '<option value="%s" %s>%s</option>',
-                        esc_attr( $val ),
-                        selected( $f_destination, $val, false ),
-                        esc_html( $label )
+                        esc_attr( $dest ),
+                        selected( $f_destination, $dest, false ),
+                        esc_html( $dest )
                     );
                 }
                 ?>
@@ -344,16 +343,10 @@ get_header();
 
             <div class="packages-grid" id="packages-grid">
                 <?php while ( $packages->have_posts() ) : $packages->the_post();
-                    $pkg_type    = '';
-                    $destination = '';
-                    $duration    = '';
-                    $price       = '';
-                    if ( function_exists( 'get_field' ) ) {
-                        $pkg_type    = get_field( 'package_type' )  ?: '';
-                        $destination = get_field( 'destinations' )  ?: '';
-                        $duration    = get_field( 'duration' )      ?: '';
-                        $price       = get_field( 'price' )         ?: '';
-                    }
+                    $pkg_type    = get_post_meta( get_the_ID(), '_package_type',         true );
+                    $destination = get_post_meta( get_the_ID(), '_package_destinations', true );
+                    $duration    = get_post_meta( get_the_ID(), '_package_duration',     true );
+                    $price       = get_post_meta( get_the_ID(), '_package_price',        true );
                 ?>
                 <article id="package-<?php the_ID(); ?>" class="package-card" <?php post_class( 'package-card' ); ?>>
 
@@ -479,7 +472,11 @@ get_header();
         </div>
 
         <div class="enquiry-strip__right">
-            <a href="tel:+91XXXXXXXXXX" class="btn btn--navy">
+            <?php
+            $strip_phone     = travzo_get( 'travzo_phone', '' );
+            $strip_phone_url = $strip_phone ? 'tel:' . preg_replace( '/[^+0-9]/', '', $strip_phone ) : home_url( '/contact' );
+            ?>
+            <a href="<?php echo esc_url( $strip_phone_url ); ?>" class="btn btn--navy">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 8.81 19.79 19.79 0 011 2.18 2 2 0 013 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L7.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92v2z"/></svg>
                 <?php esc_html_e( 'Call Us Now', 'travzo' ); ?>
             </a>

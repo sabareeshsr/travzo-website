@@ -1,8 +1,15 @@
 <?php
 /**
- * Template Name: Contact
+ * Template Name: Contact Page
+ * Template Post Type: page
  *
  * @package Travzo
+ *
+ * TODO: Replace custom contact form with WPForms shortcode once WPForms is installed.
+ * 1. Install WPForms plugin and create your contact form.
+ * 2. Go to Travzo Settings → WPForms Integration and enter the Contact Form ID.
+ * 3. The travzo_render_form() helper will automatically use WPForms when an ID is saved.
+ *    Manual override: <?php echo do_shortcode('[wpforms id="YOUR_FORM_ID"]'); ?>
  */
 
 /* ── Form handler ────────────────────────────────────────────────────────── */
@@ -24,7 +31,7 @@ if ( isset( $_POST['travzo_contact_nonce'] ) &&
     if ( empty( $cf_name ) || empty( $cf_email ) || ! is_email( $cf_email ) ) {
         $contact_error = 'Please enter a valid name and email address.';
     } else {
-        $to      = function_exists( 'get_field' ) ? ( get_field( 'site_email', 'option' ) ?: get_option( 'admin_email' ) ) : get_option( 'admin_email' );
+        $to      = travzo_get( 'travzo_email', get_option( 'admin_email' ) );
         $subject = 'New Contact Enquiry from ' . $cf_name;
         $body    = "Name:            {$cf_name}\n";
         $body   .= "Email:           {$cf_email}\n";
@@ -44,50 +51,37 @@ if ( isset( $_POST['travzo_contact_nonce'] ) &&
     }
 }
 
-/* ── ACF fields ──────────────────────────────────────────────────────────── */
-$hero_img     = '';
-$hero_heading = 'Get In Touch';
-$c_address    = '123 Travel Street, Chennai, Tamil Nadu 600001';
-$c_phone      = '+91 98765 43210';
-$c_email      = 'hello@travzoholidays.com';
-$c_whatsapp   = '';
-$c_hours      = 'Mon – Sat: 9:00 AM – 7:00 PM';
-$s_instagram  = '#';
-$s_facebook   = '#';
-$s_youtube    = '#';
+/* ── Native meta / Customizer fields ────────────────────────────────────── */
+$post_id      = get_the_ID();
+$hero_img     = travzo_get( 'travzo_contact_hero_image', '' );
+$hero_heading = travzo_get( 'travzo_contact_hero_title', 'Get In Touch' );
+$hero_desc    = travzo_get( 'travzo_contact_hero_desc',  "We\u2019d love to hear from you. Reach out to plan your next adventure." );
 
-if ( function_exists( 'get_field' ) ) {
-    $hero_img     = get_field( 'contact_hero_image' )    ?: '';
-    $hero_heading = get_field( 'contact_hero_heading' )  ?: $hero_heading;
-    $c_address    = get_field( 'contact_address' )       ?: $c_address;
-    $c_phone      = get_field( 'contact_phone' )         ?: $c_phone;
-    $c_email      = get_field( 'contact_email' )         ?: $c_email;
-    $c_whatsapp   = get_field( 'contact_whatsapp' )      ?: '';
-    $c_hours      = get_field( 'contact_hours' )         ?: $c_hours;
-    $s_instagram  = get_field( 'site_instagram', 'option' ) ?: '#';
-    $s_facebook   = get_field( 'site_facebook',  'option' ) ?: '#';
-    $s_youtube    = get_field( 'site_youtube',   'option' ) ?: '#';
-}
+$c_phone    = travzo_get( 'travzo_phone',    '+91 98765 43210' );
+$c_email    = travzo_get( 'travzo_email',    'hello@travzoholidays.com' );
+$c_address  = travzo_get( 'travzo_address',  '123 Travel Street, Chennai, Tamil Nadu 600001' );
+$c_hours    = travzo_get( 'travzo_hours',    'Mon – Sat: 9:00 AM – 7:00 PM' );
+$c_whatsapp = travzo_get( 'travzo_whatsapp', '' );
+$s_instagram = travzo_get( 'travzo_instagram', '#' );
+$s_facebook  = travzo_get( 'travzo_facebook',  '#' );
+$s_youtube   = travzo_get( 'travzo_youtube',   '#' );
 
 $c_phone_url    = 'tel:' . preg_replace( '/[^+0-9]/', '', $c_phone );
 $c_email_url    = 'mailto:' . sanitize_email( $c_email );
 $c_whatsapp_url = $c_whatsapp ? 'https://wa.me/' . preg_replace( '/[^0-9]/', '', $c_whatsapp ) : '#';
 
-/* ── Branches ────────────────────────────────────────────────────────────── */
-$branches = [];
-if ( function_exists( 'get_field' ) ) {
-    $branches = get_field( 'branches' ) ?: [];
-}
+/* ── Branches: cols [0]=city, [1]=address, [2]=phone ─────────────────────── */
+$branches = travzo_parse_lines( get_post_meta( $post_id, '_branches', true ), 3 );
 if ( empty( $branches ) ) {
     $branches = [
-        [ 'branch_city' => 'Chennai',     'branch_address' => '123 Anna Salai, Chennai 600002',          'branch_phone' => '+91 44 2345 6789', 'branch_email' => 'chennai@travzoholidays.com' ],
-        [ 'branch_city' => 'Coimbatore',  'branch_address' => '45 Avinashi Road, Coimbatore 641018',     'branch_phone' => '+91 422 234 5678', 'branch_email' => 'coimbatore@travzoholidays.com' ],
-        [ 'branch_city' => 'Madurai',     'branch_address' => '78 Bypass Road, Madurai 625010',          'branch_phone' => '+91 452 234 5678', 'branch_email' => 'madurai@travzoholidays.com' ],
-        [ 'branch_city' => 'Trichy',      'branch_address' => '12 Rockfort Road, Trichy 620001',         'branch_phone' => '+91 431 234 5678', 'branch_email' => 'trichy@travzoholidays.com' ],
-        [ 'branch_city' => 'Salem',       'branch_address' => '56 Omalur Main Road, Salem 636004',       'branch_phone' => '+91 427 234 5678', 'branch_email' => 'salem@travzoholidays.com' ],
-        [ 'branch_city' => 'Tirunelveli', 'branch_address' => '34 Palayamkottai Road, Tirunelveli 627002', 'branch_phone' => '+91 462 234 5678', 'branch_email' => 'tirunelveli@travzoholidays.com' ],
-        [ 'branch_city' => 'Vellore',     'branch_address' => '89 Katpadi Road, Vellore 632001',         'branch_phone' => '+91 416 234 5678', 'branch_email' => 'vellore@travzoholidays.com' ],
-        [ 'branch_city' => 'Pondicherry', 'branch_address' => '22 Jawaharlal Nehru Street, Pondicherry 605001', 'branch_phone' => '+91 413 234 5678', 'branch_email' => 'pondicherry@travzoholidays.com' ],
+        [ 'Chennai',     '123 Anna Salai, Chennai 600002',                    '+91 44 2345 6789' ],
+        [ 'Coimbatore',  '45 Avinashi Road, Coimbatore 641018',               '+91 422 234 5678' ],
+        [ 'Madurai',     '78 Bypass Road, Madurai 625010',                    '+91 452 234 5678' ],
+        [ 'Trichy',      '12 Rockfort Road, Trichy 620001',                   '+91 431 234 5678' ],
+        [ 'Salem',       '56 Omalur Main Road, Salem 636004',                 '+91 427 234 5678' ],
+        [ 'Tirunelveli', '34 Palayamkottai Road, Tirunelveli 627002',         '+91 462 234 5678' ],
+        [ 'Vellore',     '89 Katpadi Road, Vellore 632001',                   '+91 416 234 5678' ],
+        [ 'Pondicherry', '22 Jawaharlal Nehru Street, Pondicherry 605001',    '+91 413 234 5678' ],
     ];
 }
 
@@ -96,20 +90,18 @@ get_header(); ?>
 <main id="main-content">
 
     <!-- ══ 1. HERO ══════════════════════════════════════════════════════════ -->
-    <section class="page-hero<?php echo $hero_img ? '' : ' page-hero--default'; ?>"
-        <?php if ( $hero_img ) : ?>
-        style="background-image: url('<?php echo esc_url( $hero_img ); ?>');"
-        <?php endif; ?>>
+    <?php $_c_hero_style = $hero_img ? 'background-image:url(' . esc_url( $hero_img ) . ');background-size:cover;background-position:center' : ''; ?>
+    <section class="page-hero"<?php if ( $_c_hero_style ) : ?> style="<?php echo $_c_hero_style; ?>"<?php endif; ?>>
         <div class="page-hero-overlay"></div>
         <div class="section-inner">
             <div class="page-hero__content">
                 <nav class="page-hero__breadcrumb" aria-label="Breadcrumb">
                     <a href="<?php echo esc_url( home_url( '/' ) ); ?>">Home</a>
                     <span aria-hidden="true"> / </span>
-                    <span><?php the_title(); ?></span>
+                    <span>Contact</span>
                 </nav>
                 <h1 class="page-hero__heading"><?php echo esc_html( $hero_heading ); ?></h1>
-                <p class="page-hero__subtext">We&rsquo;d love to hear from you. Reach out to plan your next adventure.</p>
+                <p class="page-hero__subtext"><?php echo esc_html( $hero_desc ); ?></p>
             </div>
         </div>
     </section>
@@ -320,12 +312,10 @@ get_header(); ?>
 
             <div class="branches-grid">
                 <?php foreach ( $branches as $branch ) :
-                    $b_city    = esc_html( $branch['branch_city']    ?? '' );
-                    $b_address = esc_html( $branch['branch_address'] ?? '' );
-                    $b_phone   = $branch['branch_phone'] ?? '';
-                    $b_email   = $branch['branch_email'] ?? '';
+                    $b_city    = esc_html( $branch[0] ?? '' );
+                    $b_address = esc_html( $branch[1] ?? '' );
+                    $b_phone   = $branch[2] ?? '';
                     $b_tel_url = $b_phone ? 'tel:' . preg_replace( '/[^+0-9]/', '', $b_phone ) : '';
-                    $b_mail_url = $b_email ? 'mailto:' . sanitize_email( $b_email ) : '';
                 ?>
                 <div class="branch-card">
                     <div class="branch-card__icon" aria-hidden="true">
@@ -340,12 +330,6 @@ get_header(); ?>
                         <a href="<?php echo esc_url( $b_tel_url ); ?>" class="branch-card__contact-link">
                             <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
                             <?php echo esc_html( $b_phone ); ?>
-                        </a>
-                        <?php endif; ?>
-                        <?php if ( $b_email ) : ?>
-                        <a href="<?php echo esc_url( $b_mail_url ); ?>" class="branch-card__contact-link">
-                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                            <?php echo esc_html( $b_email ); ?>
                         </a>
                         <?php endif; ?>
                     </div>

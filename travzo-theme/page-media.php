@@ -1,62 +1,37 @@
 <?php
 /**
- * Template Name: Media
+ * Template Name: Media Page
+ * Template Post Type: page
  *
  * @package Travzo
  */
 
-/* ── ACF fields ──────────────────────────────────────────────────────────── */
-$hero_image    = '';
-$hero_heading  = 'Media & Press';
-$photo_gallery = [];
-$videos        = [];
-$press_items   = [];
-$awards        = [];
+/* ── Native post meta ────────────────────────────────────────────────────── */
+$post_id = get_the_ID();
 
-if ( function_exists( 'get_field' ) ) {
-    $hero_image    = get_field( 'media_hero_image' )   ?: '';
-    $hero_heading  = get_field( 'media_hero_heading' ) ?: $hero_heading;
-    $photo_gallery = get_field( 'photo_gallery' )      ?: [];
-    $videos        = get_field( 'videos' )             ?: [];
-    $press_items   = get_field( 'press_items' )        ?: [];
-    $awards        = get_field( 'awards_media' )       ?: [];
-}
+$hero_image   = travzo_get( 'travzo_media_hero_image', '' );
+$hero_heading = travzo_get( 'travzo_media_hero_title', 'Media & Press' );
+$hero_desc    = travzo_get( 'travzo_media_hero_desc',  'Our journey in photos, videos, press coverage and awards.' );
+$hero_style   = $hero_image ? 'background-image:url(' . esc_url( $hero_image ) . ');background-size:cover;background-position:center' : '';
 
-/* ── Defaults ────────────────────────────────────────────────────────────── */
-$default_videos = [
-    'Kerala Backwaters – A Journey Through Paradise',
-    'Maldives Honeymoon Experience',
-    'Bali Group Tour Highlights',
-    'Char Dham Yatra 2024',
-    'Europe Summer Tour',
-    'Kashmir – Heaven on Earth',
-];
+// Photo gallery: native WordPress attached images
+$photo_gallery = get_attached_media( 'image', $post_id );
 
-$default_press = [
-    [ 'pub' => 'The Hindu',           'headline' => 'Travzo Holidays redefines luxury travel for South Indian families',       'date' => 'March 2024' ],
-    [ 'pub' => 'Times of India',      'headline' => 'How Travzo is making devotional tourism accessible and comfortable',       'date' => 'February 2024' ],
-    [ 'pub' => 'Deccan Chronicle',    'headline' => 'Coimbatore travel agency wins hearts with personalised honeymoon packages', 'date' => 'January 2024' ],
-    [ 'pub' => 'Economic Times',      'headline' => 'Travel startups from Tamil Nadu making waves in group tourism',             'date' => 'December 2023' ],
-    [ 'pub' => 'Outlook Traveller',   'headline' => 'Best travel agencies in South India for 2024',                             'date' => 'November 2023' ],
-    [ 'pub' => 'Travel+Leisure India','headline' => 'Travzo Holidays among top picks for curated Indian experiences',           'date' => 'October 2023' ],
-];
+// Videos: cols [0]=title, [1]=url, [2]=thumbnail
+$videos = travzo_parse_lines( get_post_meta( $post_id, '_media_videos', true ), 3 );
 
-$default_awards = [
-    [ 'year' => '2024', 'title' => 'Best Travel Agency – South India',   'body' => 'Tamil Nadu Tourism Awards' ],
-    [ 'year' => '2023', 'title' => 'Excellence in Honeymoon Tourism',    'body' => 'India Travel Awards' ],
-    [ 'year' => '2023', 'title' => 'Top Emerging Travel Brand',          'body' => 'Outlook Traveller Awards' ],
-    [ 'year' => '2022', 'title' => 'Best Devotional Tour Operator',      'body' => 'South India Tourism Summit' ],
-    [ 'year' => '2022', 'title' => 'Customer Choice Award',              'body' => 'Travel+Leisure India' ],
-    [ 'year' => '2021', 'title' => 'Best Group Tour Operator',           'body' => 'Indian Travel Congress' ],
-];
+// Press: cols [0]=publication, [1]=headline, [2]=date, [3]=url
+$press_items = travzo_parse_lines( get_post_meta( $post_id, '_media_press', true ), 4 );
+
+// Awards: cols [0]=title, [1]=year, [2]=body, [3]=image
+$awards = travzo_parse_lines( get_post_meta( $post_id, '_media_awards', true ), 4 );
 
 get_header(); ?>
 
 <main id="main-content">
 
     <!-- ══ 1. HERO ══════════════════════════════════════════════════════════ -->
-    <section class="page-hero<?php echo $hero_image ? '' : ' page-hero--default'; ?>"
-        <?php if ( $hero_image ) : ?>style="background-image:url(<?php echo esc_url( $hero_image ); ?>);"<?php endif; ?>>
+    <section class="page-hero"<?php if ( $hero_style ) : ?> style="<?php echo $hero_style; ?>"<?php endif; ?>>
         <div class="page-hero-overlay"></div>
         <div class="section-inner">
             <div class="page-hero__content">
@@ -66,7 +41,7 @@ get_header(); ?>
                     <span>Media</span>
                 </nav>
                 <h1 class="page-hero__heading"><?php echo esc_html( $hero_heading ); ?></h1>
-                <p class="page-hero__subtext">Our journey in photos, videos, press coverage and awards.</p>
+                <p class="page-hero__subtext"><?php echo esc_html( $hero_desc ); ?></p>
             </div>
         </div>
     </section>
@@ -110,9 +85,9 @@ get_header(); ?>
                 <div class="photo-masonry-grid">
                     <?php if ( ! empty( $photo_gallery ) ) :
                         foreach ( $photo_gallery as $photo ) :
-                            $img_url  = esc_url( $photo['sizes']['large'] ?? $photo['url'] );
-                            $full_url = esc_url( $photo['url'] );
-                            $img_alt  = esc_attr( $photo['alt'] ?? '' );
+                            $img_url  = esc_url( wp_get_attachment_image_url( $photo->ID, 'large' ) ?: wp_get_attachment_url( $photo->ID ) );
+                            $full_url = esc_url( wp_get_attachment_url( $photo->ID ) );
+                            $img_alt  = esc_attr( get_post_meta( $photo->ID, '_wp_attachment_image_alt', true ) );
                     ?>
                     <div class="photo-item">
                         <img src="<?php echo $img_url; ?>"
@@ -144,12 +119,23 @@ get_header(); ?>
                     <p class="media-panel-subtext">Watch our travel stories and destination highlights.</p>
                 </div>
 
+                <?php
+                if ( empty( $videos ) ) {
+                    $videos = [
+                        [ 'Kerala Backwaters – A Journey Through Paradise', '#', '' ],
+                        [ 'Maldives Honeymoon Experience',                  '#', '' ],
+                        [ 'Bali Group Tour Highlights',                     '#', '' ],
+                        [ 'Char Dham Yatra 2024',                           '#', '' ],
+                        [ 'Europe Summer Tour',                             '#', '' ],
+                        [ 'Kashmir – Heaven on Earth',                      '#', '' ],
+                    ];
+                }
+                ?>
                 <div class="videos-grid">
-                    <?php if ( ! empty( $videos ) ) :
-                        foreach ( $videos as $video ) :
-                            $v_url   = esc_url( $video['video_url'] ?? '#' );
-                            $v_title = esc_html( $video['video_title'] ?? '' );
-                            $v_thumb = esc_url( $video['video_thumbnail'] ?? '' );
+                    <?php foreach ( $videos as $video ) :
+                        $v_title = esc_html( $video[0] ?? '' );
+                        $v_url   = esc_url( $video[1] ?? '#' );
+                        $v_thumb = esc_url( $video[2] ?? '' );
                     ?>
                     <div class="video-card">
                         <div class="video-thumb-wrap" data-video="<?php echo $v_url; ?>" role="button" tabindex="0" aria-label="Play <?php echo $v_title; ?>">
@@ -164,20 +150,7 @@ get_header(); ?>
                         </div>
                         <h3 class="video-title"><?php echo $v_title; ?></h3>
                     </div>
-                    <?php endforeach;
-                    else :
-                        foreach ( $default_videos as $vtitle ) : ?>
-                    <div class="video-card">
-                        <div class="video-thumb-wrap" aria-hidden="true">
-                            <div class="video-thumb-placeholder"></div>
-                            <div class="video-play-btn">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                            </div>
-                        </div>
-                        <h3 class="video-title"><?php echo esc_html( $vtitle ); ?></h3>
-                    </div>
-                    <?php endforeach;
-                    endif; ?>
+                    <?php endforeach; ?>
                 </div>
             </div><!-- /#media-videos -->
 
@@ -189,21 +162,27 @@ get_header(); ?>
                     <p class="media-panel-subtext">What the media says about Travzo Holidays.</p>
                 </div>
 
+                <?php
+                if ( empty( $press_items ) ) {
+                    $press_items = [
+                        [ 'The Hindu',            'Travzo Holidays redefines luxury travel for South Indian families',       'March 2024',    '#' ],
+                        [ 'Times of India',       'How Travzo is making devotional tourism accessible and comfortable',       'February 2024', '#' ],
+                        [ 'Deccan Chronicle',     'Coimbatore travel agency wins hearts with personalised honeymoon packages', 'January 2024',  '#' ],
+                        [ 'Economic Times',       'Travel startups from Tamil Nadu making waves in group tourism',             'December 2023', '#' ],
+                        [ 'Outlook Traveller',    'Best travel agencies in South India for 2024',                             'November 2023', '#' ],
+                        [ 'Travel+Leisure India', 'Travzo Holidays among top picks for curated Indian experiences',           'October 2023',  '#' ],
+                    ];
+                }
+                ?>
                 <div class="press-grid">
-                    <?php if ( ! empty( $press_items ) ) :
-                        foreach ( $press_items as $press ) :
-                            $p_logo = esc_url( $press['press_logo'] ?? '' );
-                            $p_pub  = esc_html( $press['press_publication'] ?? '' );
-                            $p_hl   = esc_html( $press['press_headline'] ?? '' );
-                            $p_date = esc_html( $press['press_date'] ?? '' );
-                            $p_url  = esc_url( $press['press_url'] ?? '' );
+                    <?php foreach ( $press_items as $press ) :
+                        $p_pub  = esc_html( $press[0] ?? '' );
+                        $p_hl   = esc_html( $press[1] ?? '' );
+                        $p_date = esc_html( $press[2] ?? '' );
+                        $p_url  = esc_url( $press[3] ?? '' );
                     ?>
                     <div class="press-card">
-                        <?php if ( $p_logo ) : ?>
-                        <img src="<?php echo $p_logo; ?>" alt="<?php echo $p_pub; ?>" class="press-logo">
-                        <?php else : ?>
                         <div class="press-publication-name"><?php echo $p_pub; ?></div>
-                        <?php endif; ?>
                         <h3 class="press-headline"><?php echo $p_hl; ?></h3>
                         <?php if ( $p_date ) : ?>
                         <p class="press-date">
@@ -211,24 +190,11 @@ get_header(); ?>
                             <?php echo $p_date; ?>
                         </p>
                         <?php endif; ?>
-                        <?php if ( $p_url ) : ?>
+                        <?php if ( $p_url && $p_url !== '#' ) : ?>
                         <a href="<?php echo $p_url; ?>" class="press-read-more" target="_blank" rel="noopener noreferrer">Read Article &rarr;</a>
                         <?php endif; ?>
                     </div>
-                    <?php endforeach;
-                    else :
-                        foreach ( $default_press as $p ) : ?>
-                    <div class="press-card">
-                        <div class="press-publication-name"><?php echo esc_html( $p['pub'] ); ?></div>
-                        <h3 class="press-headline"><?php echo esc_html( $p['headline'] ); ?></h3>
-                        <p class="press-date">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                            <?php echo esc_html( $p['date'] ); ?>
-                        </p>
-                        <a href="#" class="press-read-more">Read Article &rarr;</a>
-                    </div>
-                    <?php endforeach;
-                    endif; ?>
+                    <?php endforeach; ?>
                 </div>
             </div><!-- /#media-press -->
 
@@ -240,13 +206,24 @@ get_header(); ?>
                     <p class="media-panel-subtext">Our commitment to excellence recognised by the industry.</p>
                 </div>
 
+                <?php
+                if ( empty( $awards ) ) {
+                    $awards = [
+                        [ 'Best Travel Agency – South India',  '2024', 'Tamil Nadu Tourism Awards',   '' ],
+                        [ 'Excellence in Honeymoon Tourism',   '2023', 'India Travel Awards',          '' ],
+                        [ 'Top Emerging Travel Brand',         '2023', 'Outlook Traveller Awards',     '' ],
+                        [ 'Best Devotional Tour Operator',     '2022', 'South India Tourism Summit',   '' ],
+                        [ 'Customer Choice Award',             '2022', 'Travel+Leisure India',         '' ],
+                        [ 'Best Group Tour Operator',          '2021', 'Indian Travel Congress',       '' ],
+                    ];
+                }
+                ?>
                 <div class="awards-showcase-grid">
-                    <?php if ( ! empty( $awards ) ) :
-                        foreach ( $awards as $award ) :
-                            $a_img   = esc_url( $award['award_image'] ?? '' );
-                            $a_title = esc_html( $award['award_title'] ?? '' );
-                            $a_year  = esc_html( $award['award_year'] ?? '' );
-                            $a_body  = esc_html( $award['award_body'] ?? '' );
+                    <?php foreach ( $awards as $award ) :
+                        $a_title = esc_html( $award[0] ?? '' );
+                        $a_year  = esc_html( $award[1] ?? '' );
+                        $a_body  = esc_html( $award[2] ?? '' );
+                        $a_img   = esc_url( $award[3] ?? '' );
                     ?>
                     <div class="award-showcase-card">
                         <?php if ( $a_img ) : ?>
@@ -266,21 +243,7 @@ get_header(); ?>
                             <?php endif; ?>
                         </div>
                     </div>
-                    <?php endforeach;
-                    else :
-                        foreach ( $default_awards as $a ) : ?>
-                    <div class="award-showcase-card">
-                        <div class="award-showcase-placeholder" aria-hidden="true">
-                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#C9A227" stroke-width="1.5"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>
-                        </div>
-                        <div class="award-showcase-content">
-                            <span class="award-showcase-year"><?php echo esc_html( $a['year'] ); ?></span>
-                            <h3 class="award-showcase-title"><?php echo esc_html( $a['title'] ); ?></h3>
-                            <p class="award-showcase-body"><?php echo esc_html( $a['body'] ); ?></p>
-                        </div>
-                    </div>
-                    <?php endforeach;
-                    endif; ?>
+                    <?php endforeach; ?>
                 </div>
             </div><!-- /#media-awards -->
 

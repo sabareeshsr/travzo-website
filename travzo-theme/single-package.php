@@ -9,8 +9,8 @@ $pkg_form_sent  = false;
 $pkg_form_error = '';
 
 if (
-    isset( $_POST['pkg_enquiry_nonce'] ) &&
-    wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['pkg_enquiry_nonce'] ) ), 'pkg_enquiry_action' )
+    isset( $_POST['travzo_package_enquiry'], $_POST['travzo_package_nonce'] ) &&
+    wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['travzo_package_nonce'] ) ), 'travzo_package_enquiry_form' )
 ) {
     $enq_name    = sanitize_text_field( wp_unslash( $_POST['enq_name']    ?? '' ) );
     $enq_phone   = sanitize_text_field( wp_unslash( $_POST['enq_phone']   ?? '' ) );
@@ -19,7 +19,7 @@ if (
     $enq_package = sanitize_text_field( wp_unslash( $_POST['enq_package'] ?? '' ) );
 
     if ( $enq_name && $enq_phone ) {
-        $to      = 'hello@travzoholidays.com';
+        $to      = travzo_get( 'travzo_email', 'hello@travzoholidays.com' );
         $subject = sprintf( '[Travzo Enquiry] %s', $enq_package );
         $message = sprintf(
             "Package Enquiry Received\n\nPackage: %s\nName: %s\nPhone: %s\nTravel Date: %s\nNo. of People: %d",
@@ -44,47 +44,37 @@ $star_svg = '<svg width="13" height="13" viewBox="0 0 24 24" fill="#C9A227" aria
 
 <?php while ( have_posts() ) : the_post();
 
-// ── ACF field reads ─────────────────────────────────────────────────────────
-$pkg_type       = '';
-$pkg_price      = '';
-$pkg_duration   = '';
-$pkg_dest       = '';
-$pkg_group_size = '';
-$pkg_highlights = '';
-$pkg_inclusions = '';
-$pkg_exclusions = '';
-$pkg_gallery    = [];
-$pkg_itinerary  = [];
-$pkg_hotels     = [];
+// ── Native post meta reads ───────────────────────────────────────────────────
+$pkg_id         = get_the_ID();
+$pkg_type       = get_post_meta( $pkg_id, '_package_type',         true );
+$pkg_price      = get_post_meta( $pkg_id, '_package_price',        true );
+$pkg_duration   = get_post_meta( $pkg_id, '_package_duration',     true );
+$pkg_dest       = get_post_meta( $pkg_id, '_package_destinations', true );
+$pkg_group_size  = get_post_meta( $pkg_id, '_package_group_size',    true );
+$pkg_highlights  = get_post_meta( $pkg_id, '_package_highlights',    true );
+$pkg_inclusions  = get_post_meta( $pkg_id, '_package_inclusions',    true );
+$pkg_exclusions  = get_post_meta( $pkg_id, '_package_exclusions',    true );
+$pkg_download    = get_post_meta( $pkg_id, '_package_download_url',  true );
+
+// Photo gallery: attached images (uploaded via WordPress media)
+$pkg_gallery = get_attached_media( 'image', $pkg_id );
+
+// Itinerary: cols [0]="Day 1: Title", [1]=description
+$pkg_itinerary = travzo_parse_lines( get_post_meta( $pkg_id, '_package_itinerary', true ), 2 );
+
+// Hotels: cols [0]=name, [1]=stars, [2]=location, [3]=room
+$pkg_hotels = travzo_parse_lines( get_post_meta( $pkg_id, '_package_hotels', true ), 4 );
 
 $pricing = [
-    'standard_twin'   => '',
-    'standard_triple' => '',
-    'deluxe_twin'     => '',
-    'deluxe_triple'   => '',
-    'premium_twin'    => '',
-    'premium_triple'  => '',
-    'child_bed'       => '',
-    'child_no_bed'    => '',
+    'standard_twin'   => get_post_meta( $pkg_id, '_price_standard_twin',   true ),
+    'standard_triple' => get_post_meta( $pkg_id, '_price_standard_triple', true ),
+    'deluxe_twin'     => get_post_meta( $pkg_id, '_price_deluxe_twin',     true ),
+    'deluxe_triple'   => get_post_meta( $pkg_id, '_price_deluxe_triple',   true ),
+    'premium_twin'    => get_post_meta( $pkg_id, '_price_premium_twin',    true ),
+    'premium_triple'  => get_post_meta( $pkg_id, '_price_premium_triple',  true ),
+    'child_bed'       => get_post_meta( $pkg_id, '_price_child_bed',       true ),
+    'child_no_bed'    => get_post_meta( $pkg_id, '_price_child_no_bed',    true ),
 ];
-
-if ( function_exists( 'get_field' ) ) {
-    $pkg_type       = get_field( 'package_type' ) ?: '';
-    $pkg_price      = get_field( 'price' )        ?: '';
-    $pkg_duration   = get_field( 'duration' )     ?: '';
-    $pkg_dest       = get_field( 'destinations' ) ?: '';
-    $pkg_group_size = get_field( 'group_size' )   ?: '';
-    $pkg_highlights = get_field( 'highlights' )   ?: '';
-    $pkg_inclusions = get_field( 'inclusions' )   ?: '';
-    $pkg_exclusions = get_field( 'exclusions' )   ?: '';
-    $pkg_gallery    = get_field( 'gallery' )      ?: [];
-    $pkg_itinerary  = get_field( 'itinerary' )    ?: [];
-    $pkg_hotels     = get_field( 'hotels' )       ?: [];
-
-    foreach ( $pricing as $key => $_ ) {
-        $pricing[ $key ] = get_field( 'pricing_' . $key ) ?: '';
-    }
-}
 
 // Info pill fallbacks
 $pkg_duration   = $pkg_duration   ?: '5 Nights / 6 Days';
@@ -137,19 +127,7 @@ if ( ! $highlights_list ) {
     ];
 }
 
-// Fallback pricing
-if ( ! array_filter( $pricing ) ) {
-    $pricing = [
-        'standard_twin'   => '18,999',
-        'standard_triple' => '16,999',
-        'deluxe_twin'     => '24,999',
-        'deluxe_triple'   => '21,999',
-        'premium_twin'    => '32,999',
-        'premium_triple'  => '28,999',
-        'child_bed'       => '14,999',
-        'child_no_bed'    => '9,999',
-    ];
-}
+$has_pricing = (bool) array_filter( $pricing );
 ?>
 
 
@@ -232,9 +210,9 @@ if ( ! array_filter( $pricing ) ) {
                 <h3 class="pkg-section-heading"><?php esc_html_e( 'Photo Gallery', 'travzo' ); ?></h3>
                 <div class="pkg-gallery" role="list">
                     <?php foreach ( $pkg_gallery as $img ) :
-                        $img_url = is_array( $img ) ? ( $img['url']  ?? '' ) : $img;
-                        $img_alt = is_array( $img ) ? ( $img['alt']  ?? '' ) : '';
-                        $img_med = is_array( $img ) ? ( $img['sizes']['medium'] ?? $img_url ) : $img_url;
+                        $img_url = wp_get_attachment_url( $img->ID );
+                        $img_med = wp_get_attachment_image_url( $img->ID, 'medium' ) ?: $img_url;
+                        $img_alt = get_post_meta( $img->ID, '_wp_attachment_image_alt', true );
                         if ( ! $img_url ) continue;
                     ?>
                     <a class="pkg-gallery__item" href="<?php echo esc_url( $img_url ); ?>" role="listitem"
@@ -254,14 +232,16 @@ if ( ! array_filter( $pricing ) ) {
                 <h3 class="pkg-section-heading"><?php esc_html_e( 'Day by Day Itinerary', 'travzo' ); ?></h3>
 
                 <?php if ( $pkg_itinerary ) :
-                    $day_num = 1;
-                    foreach ( $pkg_itinerary as $day ) : ?>
+                    foreach ( $pkg_itinerary as $day ) :
+                        // [0] = "Day 1: Title", [1] = description
+                        $day_label = $day[0] ?? '';
+                        $day_desc  = $day[1] ?? '';
+                ?>
                 <div class="itinerary-day">
-                    <span class="day-badge"><?php printf( esc_html__( 'Day %d', 'travzo' ), $day_num ); ?></span>
-                    <h4 class="itinerary-day__title"><?php echo esc_html( $day['day_title'] ?? '' ); ?></h4>
-                    <p class="itinerary-day__desc"><?php echo nl2br( esc_html( $day['day_description'] ?? '' ) ); ?></p>
+                    <span class="day-badge"><?php echo esc_html( $day_label ); ?></span>
+                    <p class="itinerary-day__desc"><?php echo nl2br( esc_html( $day_desc ) ); ?></p>
                 </div>
-                <?php $day_num++; endforeach;
+                <?php endforeach;
                 else : ?>
                 <div class="itinerary-day">
                     <span class="day-badge"><?php esc_html_e( 'Day 1', 'travzo' ); ?></span>
@@ -339,11 +319,12 @@ if ( ! array_filter( $pricing ) ) {
 
                 <?php if ( $pkg_hotels ) :
                     foreach ( $pkg_hotels as $hotel ) :
-                        $h_name     = $hotel['hotel_name']      ?? '';
-                        $h_stars    = (int) ( $hotel['hotel_stars']    ?? 3 );
-                        $h_location = $hotel['hotel_location']  ?? '';
-                        $h_room     = $hotel['hotel_room_type'] ?? '';
-                        $h_img      = $hotel['hotel_image']     ?? '';
+                        // cols: [0]=name, [1]=stars, [2]=location, [3]=room
+                        $h_name     = $hotel[0] ?? '';
+                        $h_stars    = (int) ( $hotel[1] ?? 3 );
+                        $h_location = $hotel[2] ?? '';
+                        $h_room     = $hotel[3] ?? '';
+                        $h_img      = '';
                 ?>
                 <div class="hotel-card">
                     <div class="hotel-card__image-wrap<?php echo $h_img ? '' : ' hotel-card__image-wrap--placeholder'; ?>">
@@ -431,48 +412,15 @@ if ( ! array_filter( $pricing ) ) {
 
                     <h4 class="sidebar-card__form-heading"><?php esc_html_e( 'Quick Enquiry', 'travzo' ); ?></h4>
 
-                    <?php if ( $pkg_form_sent ) : ?>
-                    <div class="sidebar-form-success" role="alert">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                        <p><?php esc_html_e( "Thanks! We'll be in touch soon.", 'travzo' ); ?></p>
-                    </div>
-                    <?php else : ?>
+                    <?php travzo_render_form( 'travzo_form_package', travzo_default_package_form( $pkg_id ) ); ?>
 
-                    <?php if ( $pkg_form_error ) : ?>
-                    <p class="sidebar-form-error" role="alert"><?php echo esc_html( $pkg_form_error ); ?></p>
-                    <?php endif; ?>
-
-                    <form class="sidebar-enquiry-form" method="POST" action="">
-                        <?php wp_nonce_field( 'pkg_enquiry_action', 'pkg_enquiry_nonce' ); ?>
-                        <input type="hidden" name="enq_package" value="<?php echo esc_attr( get_the_title() ); ?>">
-
-                        <div class="sidebar-form-field">
-                            <label for="enq-name"><?php esc_html_e( 'Your Name', 'travzo' ); ?></label>
-                            <input type="text" id="enq-name" name="enq_name" placeholder="<?php esc_attr_e( 'Full name', 'travzo' ); ?>" required>
-                        </div>
-                        <div class="sidebar-form-field">
-                            <label for="enq-phone"><?php esc_html_e( 'Phone Number', 'travzo' ); ?></label>
-                            <input type="tel" id="enq-phone" name="enq_phone" placeholder="<?php esc_attr_e( '+91 XXXXX XXXXX', 'travzo' ); ?>" required>
-                        </div>
-                        <div class="sidebar-form-field">
-                            <label for="enq-date"><?php esc_html_e( 'Travel Date', 'travzo' ); ?></label>
-                            <input type="date" id="enq-date" name="enq_date" min="<?php echo esc_attr( gmdate( 'Y-m-d' ) ); ?>">
-                        </div>
-                        <div class="sidebar-form-field">
-                            <label for="enq-people"><?php esc_html_e( 'No. of People', 'travzo' ); ?></label>
-                            <input type="number" id="enq-people" name="enq_people" min="1" max="50" value="2">
-                        </div>
-
-                        <button type="submit" class="btn-enquire-now"><?php esc_html_e( 'Enquire Now', 'travzo' ); ?></button>
-                    </form>
-
-                    <?php endif; ?>
-
-                    <!-- Download PDF -->
-                    <a href="#" class="btn-download-pdf">
+                    <?php if ( $pkg_download ) : ?>
+                    <!-- Download Itinerary -->
+                    <a href="<?php echo esc_url( $pkg_download ); ?>" class="btn-download-pdf" target="_blank" rel="noopener noreferrer">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                         <?php esc_html_e( 'Download Itinerary PDF', 'travzo' ); ?>
                     </a>
+                    <?php endif; ?>
 
                     <!-- Trust badges -->
                     <div class="sidebar-trust-badges">
@@ -515,6 +463,7 @@ function travzo_fmt_price( $val ) {
         <h2 class="section-heading pkg-centered-heading"><?php esc_html_e( 'Package Pricing', 'travzo' ); ?></h2>
         <p class="pkg-centered-subtext"><?php esc_html_e( 'All prices are per person. Contact us for group discounts.', 'travzo' ); ?></p>
 
+        <?php if ( $has_pricing ) : ?>
         <div class="pricing-table-wrap">
             <table class="pricing-table" aria-label="<?php esc_attr_e( 'Package pricing table', 'travzo' ); ?>">
                 <thead>
@@ -554,8 +503,10 @@ function travzo_fmt_price( $val ) {
                 </tbody>
             </table>
         </div><!-- /.pricing-table-wrap -->
-
         <p class="pricing-table__note"><?php esc_html_e( '* Prices are subject to change. GST and other taxes extra.', 'travzo' ); ?></p>
+        <?php else : ?>
+        <p class="pricing-coming-soon"><?php esc_html_e( 'Pricing details coming soon. Contact us for a personalised quote.', 'travzo' ); ?></p>
+        <?php endif; ?>
 
     </div>
 </section>
@@ -638,7 +589,7 @@ $similar_args = [
 ];
 if ( $pkg_type ) {
     $similar_args['meta_query'] = [
-        [ 'key' => 'package_type', 'value' => $pkg_type, 'compare' => 'LIKE' ],
+        [ 'key' => '_package_type', 'value' => $pkg_type, 'compare' => 'LIKE' ],
     ];
 }
 $similar_packages = new WP_Query( $similar_args );
@@ -662,10 +613,10 @@ if ( $similar_packages->post_count < 3 ) {
 
         <div class="packages-grid similar-packages__grid">
             <?php while ( $similar_packages->have_posts() ) : $similar_packages->the_post();
-                $sim_type  = function_exists( 'get_field' ) ? ( get_field( 'package_type' ) ?: '' ) : '';
-                $sim_dest  = function_exists( 'get_field' ) ? ( get_field( 'destinations' ) ?: '' ) : '';
-                $sim_dur   = function_exists( 'get_field' ) ? ( get_field( 'duration' )     ?: '' ) : '';
-                $sim_price = function_exists( 'get_field' ) ? ( get_field( 'price' )        ?: '' ) : '';
+                $sim_type  = get_post_meta( get_the_ID(), '_package_type',         true );
+                $sim_dest  = get_post_meta( get_the_ID(), '_package_destinations', true );
+                $sim_dur   = get_post_meta( get_the_ID(), '_package_duration',     true );
+                $sim_price = get_post_meta( get_the_ID(), '_package_price',        true );
             ?>
             <article class="package-card" <?php post_class( 'package-card' ); ?>>
                 <div class="package-card__image-wrap">

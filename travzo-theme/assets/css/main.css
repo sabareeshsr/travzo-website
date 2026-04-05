@@ -6279,3 +6279,30 @@
 }
 
 #back-to-top:hover { background: var(--gold); color: var(--navy); }
+
+/* ============================================================
+   LOGO
+   ============================================================ */
+
+/* WordPress custom logo */
+.custom-logo-link img {
+  height: 50px;
+  width: auto;
+  display: block;
+}
+
+/* Text fallback when no custom logo is set */
+.site-logo-text {
+  font-family: 'Playfair Display', serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--navy);
+  text-decoration: none;
+  line-height: 1;
+}
+
+/* Mega menu "View More" link */
+.mega-viewmore a {
+  color: var(--gold) !important;
+  font-weight: 600;
+}

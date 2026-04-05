@@ -1,31 +1,17 @@
 <?php
-/* ── ACF Options: Footer settings ──────────────────────────────────────── */
-$ftr_tagline       = 'Your trusted travel partner for unforgettable journeys across India and the world.';
-$ftr_address       = '123 Travel Street, Coimbatore,<br>Tamil Nadu 641001';
-$ftr_working_hours = 'Mon – Sat: 9:00 AM – 7:00 PM';
-$ftr_copyright     = '';
+/* ── Customizer: Footer settings ────────────────────────────────────────── */
+$ftr_tagline       = travzo_get( 'travzo_footer_tagline', 'Your trusted travel partner for unforgettable journeys across India and the world.' );
+$ftr_address       = travzo_get( 'travzo_footer_address', '123 Travel Street, Coimbatore,<br>Tamil Nadu 641001' );
+$ftr_working_hours = travzo_get( 'travzo_footer_hours',   'Mon – Sat: 9:00 AM – 7:00 PM' );
+$ftr_copyright     = travzo_get( 'travzo_footer_copyright', '' );
 
-// Shared contact / social (same fields as header)
-$ftr_phone     = '+91 XXXXX XXXXX';
-$ftr_email     = 'hello@travzoholidays.com';
-$ftr_instagram = '#';
-$ftr_facebook  = '#';
-$ftr_youtube   = '#';
-$ftr_whatsapp  = '';
-
-if ( function_exists( 'get_field' ) ) {
-    $ftr_tagline       = get_field( 'footer_tagline',      'option' ) ?: $ftr_tagline;
-    $ftr_address       = get_field( 'footer_address',      'option' ) ?: $ftr_address;
-    $ftr_working_hours = get_field( 'footer_working_hours', 'option' ) ?: $ftr_working_hours;
-    $ftr_copyright     = get_field( 'footer_copyright',    'option' ) ?: $ftr_copyright;
-
-    $ftr_phone     = get_field( 'site_phone',     'option' ) ?: $ftr_phone;
-    $ftr_email     = get_field( 'site_email',     'option' ) ?: $ftr_email;
-    $ftr_instagram = get_field( 'site_instagram', 'option' ) ?: $ftr_instagram;
-    $ftr_facebook  = get_field( 'site_facebook',  'option' ) ?: $ftr_facebook;
-    $ftr_youtube   = get_field( 'site_youtube',   'option' ) ?: $ftr_youtube;
-    $ftr_whatsapp  = get_field( 'site_whatsapp',  'option' ) ?: $ftr_whatsapp;
-}
+// Shared contact / social (same keys as header)
+$ftr_phone     = travzo_get( 'travzo_phone',     '+91 XXXXX XXXXX' );
+$ftr_email     = travzo_get( 'travzo_email',     'hello@travzoholidays.com' );
+$ftr_instagram = travzo_get( 'travzo_instagram', '#' );
+$ftr_facebook  = travzo_get( 'travzo_facebook',  '#' );
+$ftr_youtube   = travzo_get( 'travzo_youtube',   '#' );
+$ftr_whatsapp  = travzo_get( 'travzo_whatsapp',  '' );
 
 // Derived URLs
 $ftr_phone_url    = 'tel:' . preg_replace( '/[^+0-9]/', '', $ftr_phone );
@@ -34,7 +20,7 @@ $ftr_whatsapp_url = $ftr_whatsapp
     ? 'https://wa.me/' . preg_replace( '/[^0-9]/', '', $ftr_whatsapp )
     : '#';
 
-// Copyright line: use ACF value if set, otherwise build default
+// Copyright line: use Customizer value if set, otherwise build default
 $ftr_copy_line = $ftr_copyright
     ? $ftr_copyright
     : sprintf(

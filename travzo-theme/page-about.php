@@ -1,26 +1,31 @@
 <?php
 /**
- * Template Name: About
- * Travzo Holidays WordPress Theme
+ * Template Name: About Page
+ * Template Post Type: page
+ *
+ * @package Travzo
  */
 
-// ── ACF field reads ────────────────────────────────────────────────────────────
-$hero_image   = function_exists( 'get_field' ) ? get_field( 'hero_image' )   : '';
-$hero_heading = function_exists( 'get_field' ) ? get_field( 'hero_heading' ) : '';
-$hero_subtext = function_exists( 'get_field' ) ? get_field( 'hero_subtext' ) : '';
+// ── Native post meta reads ─────────────────────────────────────────────────────
+$post_id = get_the_ID();
 
-$hero_heading = $hero_heading ?: __( 'About Travzo Holidays', 'travzo' );
-$hero_subtext = $hero_subtext ?: __( 'Your trusted travel partner crafting unforgettable journeys across India and the world', 'travzo' );
-$hero_style   = $hero_image   ? 'background-image: url(' . esc_url( $hero_image ) . ');' : '';
+$hero_image   = travzo_get( 'travzo_about_hero_image', '' );
+$hero_heading = travzo_get( 'travzo_about_hero_title', 'About Travzo Holidays' );
+$hero_subtext = travzo_get( 'travzo_about_hero_desc',  'Your trusted travel partner crafting unforgettable journeys across India and the world' );
+$hero_style   = $hero_image ? 'background-image:url(' . esc_url( $hero_image ) . ');background-size:cover;background-position:center' : '';
 
-$story_heading = function_exists( 'get_field' ) ? get_field( 'story_heading' ) : '';
-$story_text    = function_exists( 'get_field' ) ? get_field( 'story_text' )    : '';
-$story_image   = function_exists( 'get_field' ) ? get_field( 'story_image' )   : '';
-$story_heading = $story_heading ?: __( 'Who We Are', 'travzo' );
+$story_heading = get_post_meta( $post_id, '_about_story_heading', true ) ?: __( 'Who We Are', 'travzo' );
+$story_text    = get_post_meta( $post_id, '_about_story_text',    true );
+$story_image   = get_post_meta( $post_id, '_about_story_image',   true );
 
-$team            = function_exists( 'get_field' ) ? get_field( 'team_members' )   : [];
-$awards          = function_exists( 'get_field' ) ? get_field( 'awards' )          : [];
-$accreditations  = function_exists( 'get_field' ) ? get_field( 'accreditations' )  : [];
+// cols: [0]=name, [1]=role, [2]=bio, [3]=photo
+$team = travzo_parse_lines( get_post_meta( $post_id, '_about_team', true ), 4 );
+
+// cols: [0]=name, [1]=year, [2]=image
+$awards = travzo_parse_lines( get_post_meta( $post_id, '_about_awards', true ), 3 );
+
+// cols: [0]=name, [1]=image
+$accreditations = travzo_parse_lines( get_post_meta( $post_id, '_about_accreditations', true ), 2 );
 
 get_header();
 ?>
@@ -206,10 +211,10 @@ get_header();
 
         <div class="team-grid">
             <?php foreach ( $team as $member ) :
-                $m_name  = $member['member_name']  ?? '';
-                $m_role  = $member['member_role']  ?? '';
-                $m_bio   = $member['member_bio']   ?? '';
-                $m_photo = $member['member_photo'] ?? '';
+                $m_name  = $member[0] ?? '';
+                $m_role  = $member[1] ?? '';
+                $m_bio   = $member[2] ?? '';
+                $m_photo = $member[3] ?? '';
                 $initial = strtoupper( mb_substr( $m_name, 0, 1 ) );
             ?>
             <div class="team-card">
@@ -246,9 +251,9 @@ get_header();
 
         <div class="awards-grid">
             <?php foreach ( $awards as $award ) :
-                $aw_name  = $award['award_name']  ?? '';
-                $aw_year  = $award['award_year']  ?? '';
-                $aw_image = $award['award_image'] ?? '';
+                $aw_name  = $award[0] ?? '';
+                $aw_year  = $award[1] ?? '';
+                $aw_image = $award[2] ?? '';
             ?>
             <div class="award-card">
                 <?php if ( $aw_image ) : ?>
@@ -283,8 +288,8 @@ get_header();
         <div class="accreditation-logos-grid">
             <?php if ( $accreditations ) :
                 foreach ( $accreditations as $acc ) :
-                    $acc_name = $acc['logo_name']  ?? '';
-                    $acc_img  = $acc['logo_image'] ?? '';
+                    $acc_name = $acc[0] ?? '';
+                    $acc_img  = $acc[1] ?? '';
             ?>
             <div class="accreditation-logo-card">
                 <?php if ( $acc_img ) : ?>

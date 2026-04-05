@@ -14,7 +14,11 @@ get_header(); ?>
 <main id="main-content">
 
     <!-- ══ 1. HERO ══════════════════════════════════════════════════════════ -->
-    <section class="page-hero page-hero--default">
+    <?php
+    $_blog_hero_img   = travzo_get( 'travzo_blog_hero_image', '' );
+    $_blog_hero_style = $_blog_hero_img ? 'background-image:url(' . esc_url( $_blog_hero_img ) . ');background-size:cover;background-position:center' : '';
+    ?>
+    <section class="page-hero"<?php if ( $_blog_hero_style ) : ?> style="<?php echo $_blog_hero_style; ?>"<?php endif; ?>>
         <div class="page-hero-overlay"></div>
         <div class="section-inner">
             <div class="page-hero__content">
@@ -23,8 +27,8 @@ get_header(); ?>
                     <span aria-hidden="true"> / </span>
                     <span>Blog</span>
                 </nav>
-                <h1 class="page-hero__heading">Travel Stories &amp; Tips</h1>
-                <p class="page-hero__subtext">Inspiration, guides and stories from our journeys around the world.</p>
+                <h1 class="page-hero__heading"><?php echo esc_html( travzo_get( 'travzo_blog_hero_title', 'Travel Stories & Tips' ) ); ?></h1>
+                <p class="page-hero__subtext"><?php echo esc_html( travzo_get( 'travzo_blog_hero_desc', 'Inspiration, guides and stories from our journeys around the world.' ) ); ?></p>
             </div>
         </div>
     </section>
