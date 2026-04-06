@@ -138,7 +138,7 @@ $hdr_whatsapp_url = $hdr_whatsapp
                                         <li><a href="#">Andaman Islands Tour</a></li>
                                         <li><a href="#">Thailand Group Tour</a></li>
                                         <?php endif; ?>
-                                        <li class="mega-viewmore"><a href="<?php echo esc_url( home_url( '/packages?type=Group+Tour' ) ); ?>">View More &rarr;</a></li>
+                                        <li class="mega-viewmore"><a href="<?php echo esc_url( travzo_get( 'travzo_menu_group_all', home_url( '/packages?type=Group+Tour' ) ) ); ?>">View More &rarr;</a></li>
                                     </ul>
                                 </div>
                                 <div class="mega-col">
@@ -208,7 +208,7 @@ $hdr_whatsapp_url = $hdr_whatsapp
                                         <li><a href="#">Andaman Honeymoon</a></li>
                                         <li><a href="#">Coorg Honeymoon</a></li>
                                         <?php endif; ?>
-                                        <li class="mega-viewmore"><a href="<?php echo esc_url( home_url( '/packages?type=Honeymoon' ) ); ?>">View More &rarr;</a></li>
+                                        <li class="mega-viewmore"><a href="<?php echo esc_url( travzo_get( 'travzo_menu_honeymoon_all', home_url( '/packages?type=Honeymoon' ) ) ); ?>">View More &rarr;</a></li>
                                     </ul>
                                 </div>
                                 <div class="mega-col">
@@ -278,7 +278,7 @@ $hdr_whatsapp_url = $hdr_whatsapp
                                         <li><a href="#">Shirdi Tour</a></li>
                                         <li><a href="#">Murugan Temples Circuit</a></li>
                                         <?php endif; ?>
-                                        <li class="mega-viewmore"><a href="<?php echo esc_url( home_url( '/packages?type=Devotional' ) ); ?>">View More &rarr;</a></li>
+                                        <li class="mega-viewmore"><a href="<?php echo esc_url( travzo_get( 'travzo_menu_devotional_all', home_url( '/packages?type=Devotional' ) ) ); ?>">View More &rarr;</a></li>
                                     </ul>
                                 </div>
                                 <div class="mega-col">
@@ -337,7 +337,7 @@ $hdr_whatsapp_url = $hdr_whatsapp
                                         <li><a href="#">Ooty Wedding</a></li>
                                         <li><a href="#">Maldives Wedding</a></li>
                                         <?php endif; ?>
-                                        <li class="mega-viewmore"><a href="<?php echo esc_url( home_url( '/packages?type=Destination+Wedding' ) ); ?>">View More &rarr;</a></li>
+                                        <li class="mega-viewmore"><a href="<?php echo esc_url( travzo_get( 'travzo_menu_wedding_all', home_url( '/packages?type=Destination+Wedding' ) ) ); ?>">View More &rarr;</a></li>
                                     </ul>
                                 </div>
                                 <div class="mega-col">
@@ -394,7 +394,7 @@ $hdr_whatsapp_url = $hdr_whatsapp
                                         <li><a href="#">Andaman Solo</a></li>
                                         <li><a href="#">Northeast India</a></li>
                                         <?php endif; ?>
-                                        <li class="mega-viewmore"><a href="<?php echo esc_url( home_url( '/packages?type=Solo+Trip' ) ); ?>">View More &rarr;</a></li>
+                                        <li class="mega-viewmore"><a href="<?php echo esc_url( travzo_get( 'travzo_menu_solo_all', home_url( '/packages?type=Solo+Trip' ) ) ); ?>">View More &rarr;</a></li>
                                     </ul>
                                 </div>
                                 <div class="mega-col">

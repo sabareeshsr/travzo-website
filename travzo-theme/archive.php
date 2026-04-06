@@ -211,16 +211,11 @@ get_header(); ?>
             <div class="newsletter-icon" aria-hidden="true">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--navy)" stroke-width="1.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
             </div>
-            <h2 class="newsletter-heading">Get Travel Stories in Your Inbox</h2>
-            <p class="newsletter-subtext">Subscribe for the latest travel tips, destination guides and exclusive offers.</p>
-            <form class="newsletter-form" method="POST" action="">
-                <div class="newsletter-form__pill">
-                    <input type="email" name="newsletter_email"
-                           placeholder="Enter your email address" required
-                           aria-label="Email address">
-                    <button type="submit">Subscribe</button>
-                </div>
-            </form>
+            <h2 class="newsletter-heading"><?php echo esc_html( travzo_get( 'travzo_newsletter_heading', 'Get Travel Stories in Your Inbox' ) ); ?></h2>
+            <p class="newsletter-subtext"><?php echo esc_html( travzo_get( 'travzo_newsletter_subtext', 'Subscribe for travel tips, destination guides and exclusive offers.' ) ); ?></p>
+            <?php
+            travzo_render_form( 'travzo_form_newsletter', '<form class="newsletter-form" method="POST" action=""><div class="newsletter-form__pill"><input type="email" name="newsletter_email" placeholder="Enter your email address" required aria-label="Email address"><button type="submit">Subscribe</button></div></form>' );
+            ?>
         </div>
     </section>
 

@@ -316,6 +316,70 @@ add_action( 'customize_register', function ( $wp_customize ) {
     ] );
 }, 30 );
 
+// ── Homepage – Our Packages Section Labels (FIX 10) ──────────────────────────
+add_action( 'customize_register', function ( $wp_customize ) {
+    $wp_customize->add_section( 'travzo_packages_section', [
+        'title' => 'Homepage – Our Packages Section',
+        'panel' => 'travzo_panel',
+    ] );
+    $wp_customize->add_setting( 'travzo_packages_label',   [ 'default' => 'WHAT WE OFFER', 'sanitize_callback' => 'sanitize_text_field' ] );
+    $wp_customize->add_control( 'travzo_packages_label',   [ 'label' => 'Section Label',   'section' => 'travzo_packages_section', 'type' => 'text' ] );
+    $wp_customize->add_setting( 'travzo_packages_heading', [ 'default' => 'Our Packages',  'sanitize_callback' => 'sanitize_text_field' ] );
+    $wp_customize->add_control( 'travzo_packages_heading', [ 'label' => 'Section Heading', 'section' => 'travzo_packages_section', 'type' => 'text' ] );
+} );
+
+// ── About Page Stats (FIX 4) ──────────────────────────────────────────────────
+add_action( 'customize_register', function ( $wp_customize ) {
+    $wp_customize->add_section( 'travzo_about_stats', [
+        'title' => 'About Page – Stats',
+        'panel' => 'travzo_panel',
+    ] );
+    $about_stat_fields = [
+        'travzo_about_stat1_number' => 'Stat 1 Number (e.g. 500+)',
+        'travzo_about_stat1_label'  => 'Stat 1 Label (e.g. Happy Travellers)',
+        'travzo_about_stat2_number' => 'Stat 2 Number (e.g. 50+)',
+        'travzo_about_stat2_label'  => 'Stat 2 Label (e.g. Destinations)',
+        'travzo_about_stat3_number' => 'Stat 3 Number (e.g. 10+)',
+        'travzo_about_stat3_label'  => 'Stat 3 Label (e.g. Years Experience)',
+        'travzo_about_stat4_number' => 'Stat 4 Number (e.g. 100%)',
+        'travzo_about_stat4_label'  => 'Stat 4 Label (e.g. Customised Itineraries)',
+        'travzo_about_badge_text'   => 'Experience Badge (e.g. 10+ Years of Excellence)',
+    ];
+    foreach ( $about_stat_fields as $key => $label ) {
+        $wp_customize->add_setting( $key, [ 'default' => '', 'sanitize_callback' => 'sanitize_text_field' ] );
+        $wp_customize->add_control( $key, [ 'label' => $label, 'section' => 'travzo_about_stats', 'type' => 'text' ] );
+    }
+} );
+
+// ── Header – Mega Menu View-All URLs + Nav note (FIX 5) ──────────────────────
+add_action( 'customize_register', function ( $wp_customize ) {
+    // Note in Header Settings pointing to Appearance → Menus
+    $wp_customize->add_setting( 'travzo_nav_note', [ 'default' => '' ] );
+    $wp_customize->add_control( 'travzo_nav_note', [
+        'label'       => 'Navigation Menu',
+        'description' => 'To edit nav labels go to Appearance → Menus and assign a menu to "Primary Navigation".',
+        'section'     => 'travzo_header',
+        'type'        => 'hidden',
+    ] );
+
+    // Mega menu view-all URLs
+    $wp_customize->add_section( 'travzo_mega_menu', [
+        'title' => 'Header – Mega Menu URLs',
+        'panel' => 'travzo_panel',
+    ] );
+    $mega_url_fields = [
+        'travzo_menu_group_all'      => 'Group Tours – View All URL',
+        'travzo_menu_honeymoon_all'  => 'Honeymoon – View All URL',
+        'travzo_menu_devotional_all' => 'Devotional – View All URL',
+        'travzo_menu_wedding_all'    => 'Destination Wedding – View All URL',
+        'travzo_menu_solo_all'       => 'Solo Trips – View All URL',
+    ];
+    foreach ( $mega_url_fields as $key => $label ) {
+        $wp_customize->add_setting( $key, [ 'default' => '', 'sanitize_callback' => 'esc_url_raw' ] );
+        $wp_customize->add_control( $key, [ 'label' => $label, 'section' => 'travzo_mega_menu', 'type' => 'url' ] );
+    }
+} );
+
 // ── Homepage – Contact Section ────────────────────────────────────────────────
 add_action( 'customize_register', function ( $wp_customize ) {
     $wp_customize->add_section( 'travzo_contact_section', [
@@ -716,11 +780,89 @@ function travzo_homepage_testimonials_cb( $post ) {
 }
 
 function travzo_homepage_tiles_cb( $post ) {
-    $val = get_post_meta( $post->ID, '_package_tiles', true );
-    echo '<p><label style="font-weight:600;display:block;margin-bottom:4px">Package Category Tiles</label>';
-    echo '<small style="color:#666;display:block;margin-bottom:8px">One tile per line. Format: <strong>Tile Name | Package Count | URL | Image URL (optional)</strong><br>';
-    echo 'Example: Group Tours | 12 Packages | /packages?type=Group+Tour | https://...</small>';
-    echo '<textarea name="_package_tiles" rows="8" style="width:100%">' . esc_textarea( $val ) . '</textarea></p>';
+    $tiles = get_post_meta( $post->ID, '_package_tiles_v2', true );
+    if ( ! is_array( $tiles ) ) {
+        $tiles = [];
+    }
+    if ( empty( $tiles ) ) {
+        $tiles = [
+            [ 'name' => 'Group Tours',          'type' => 'Group Tour',         'image' => '' ],
+            [ 'name' => 'Honeymoon Packages',   'type' => 'Honeymoon',          'image' => '' ],
+            [ 'name' => 'Solo Trips',           'type' => 'Solo Trip',          'image' => '' ],
+            [ 'name' => 'Devotional Tours',     'type' => 'Devotional',         'image' => '' ],
+            [ 'name' => 'Destination Weddings', 'type' => 'Destination Wedding', 'image' => '' ],
+            [ 'name' => 'International',        'type' => 'International',      'image' => '' ],
+        ];
+    }
+
+    wp_nonce_field( 'travzo_tiles_save', 'travzo_tiles_nonce' );
+
+    echo '<p style="color:#666;margin-bottom:16px">Each tile links to its package type. Package count is auto-calculated from live packages. Add, remove or reorder tiles.</p>';
+    echo '<div id="travzo-tiles-container">';
+
+    foreach ( $tiles as $i => $tile ) {
+        $t_name  = esc_attr( $tile['name']  ?? '' );
+        $t_type  = $tile['type']  ?? '';
+        $t_image = esc_attr( $tile['image'] ?? '' );
+
+        echo '<div class="travzo-tile-row" style="display:grid;grid-template-columns:2fr 2fr 3fr auto;gap:12px;align-items:center;padding:12px;background:#f9f9f9;border:1px solid #e0e0e0;border-radius:6px;margin-bottom:8px">';
+
+        echo '<div><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">TILE NAME</label>';
+        echo '<input type="text" name="tiles_name[]" value="' . $t_name . '" placeholder="e.g. Group Tours" style="width:100%"></div>';
+
+        echo '<div><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">PACKAGE TYPE</label>';
+        echo '<select name="tiles_type[]" style="width:100%">';
+        $type_options = [ 'Group Tour', 'Honeymoon', 'Solo Trip', 'Devotional', 'Destination Wedding', 'International' ];
+        foreach ( $type_options as $opt ) {
+            echo '<option value="' . esc_attr( $opt ) . '"' . selected( $t_type, $opt, false ) . '>' . esc_html( $opt ) . '</option>';
+        }
+        echo '</select></div>';
+
+        echo '<div><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">BACKGROUND IMAGE URL</label>';
+        echo '<div style="display:flex;gap:6px">';
+        echo '<input type="url" name="tiles_image[]" value="' . $t_image . '" placeholder="https://... or leave blank for colour" style="flex:1" class="travzo-tile-image-input">';
+        echo '<button type="button" class="button travzo-upload-btn">Upload</button>';
+        echo '</div></div>';
+
+        echo '<div style="text-align:center"><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">REMOVE</label>';
+        echo '<button type="button" class="button travzo-remove-tile" style="color:#dc2626">&#x2715;</button></div>';
+
+        echo '</div>';
+    }
+
+    echo '</div>';
+    echo '<button type="button" id="travzo-add-tile" class="button button-secondary" style="margin-top:12px">+ Add Tile</button>';
+
+    echo '<script>
+    jQuery(function($) {
+        $(document).on("click", ".travzo-upload-btn", function() {
+            var input = $(this).prev("input");
+            var frame = wp.media({ title: "Select Image", button: { text: "Use Image" }, multiple: false });
+            frame.on("select", function() {
+                input.val(frame.state().get("selection").first().toJSON().url);
+            });
+            frame.open();
+        });
+        $(document).on("click", ".travzo-remove-tile", function() {
+            if ($(".travzo-tile-row").length > 1) {
+                $(this).closest(".travzo-tile-row").remove();
+            } else {
+                alert("You need at least one tile.");
+            }
+        });
+        var typeOptions = ["Group Tour","Honeymoon","Solo Trip","Devotional","Destination Wedding","International"];
+        $("#travzo-add-tile").on("click", function() {
+            var opts = typeOptions.map(function(t){ return "<option value=\'"+t+"\'>"+t+"</option>"; }).join("");
+            var row = "<div class=\'travzo-tile-row\' style=\'display:grid;grid-template-columns:2fr 2fr 3fr auto;gap:12px;align-items:center;padding:12px;background:#f9f9f9;border:1px solid #e0e0e0;border-radius:6px;margin-bottom:8px\'>"
+                + "<div><label style=\'display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px\'>TILE NAME</label><input type=\'text\' name=\'tiles_name[]\' placeholder=\'e.g. Group Tours\' style=\'width:100%\'></div>"
+                + "<div><label style=\'display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px\'>PACKAGE TYPE</label><select name=\'tiles_type[]\' style=\'width:100%\'>"+opts+"</select></div>"
+                + "<div><label style=\'display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px\'>BACKGROUND IMAGE URL</label><div style=\'display:flex;gap:6px\'><input type=\'url\' name=\'tiles_image[]\' placeholder=\'https://...\' style=\'flex:1\' class=\'travzo-tile-image-input\'><button type=\'button\' class=\'button travzo-upload-btn\'>Upload</button></div></div>"
+                + "<div style=\'text-align:center\'><label style=\'display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px\'>REMOVE</label><button type=\'button\' class=\'button travzo-remove-tile\' style=\'color:#dc2626\'>&#x2715;</button></div>"
+                + "</div>";
+            $("#travzo-tiles-container").append(row);
+        });
+    });
+    </script>';
 }
 
 function travzo_about_content_cb( $post ) {
@@ -805,7 +947,7 @@ add_action( 'save_post_page', function ( $post_id ) {
 
     $page_fields = [
         '_hero_image', '_hero_heading', '_hero_subtext',
-        '_testimonials', '_package_tiles',
+        '_testimonials',
         '_about_story_heading', '_about_story_text', '_about_story_image',
         '_about_team', '_about_awards', '_about_accreditations',
         '_branches', '_faqs',
@@ -815,6 +957,27 @@ add_action( 'save_post_page', function ( $post_id ) {
         if ( isset( $_POST[ $field ] ) ) {
             update_post_meta( $post_id, $field, sanitize_textarea_field( wp_unslash( $_POST[ $field ] ) ) );
         }
+    }
+
+    // Save package tiles repeater (_package_tiles_v2)
+    if ( isset( $_POST['travzo_tiles_nonce'] ) &&
+         wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['travzo_tiles_nonce'] ) ), 'travzo_tiles_save' ) ) {
+        $names  = isset( $_POST['tiles_name'] )  ? (array) $_POST['tiles_name']  : [];
+        $types  = isset( $_POST['tiles_type'] )  ? (array) $_POST['tiles_type']  : [];
+        $images = isset( $_POST['tiles_image'] ) ? (array) $_POST['tiles_image'] : [];
+        $tiles_v2 = [];
+        foreach ( $names as $i => $name ) {
+            $name = sanitize_text_field( wp_unslash( $name ) );
+            if ( '' === trim( $name ) ) {
+                continue;
+            }
+            $tiles_v2[] = [
+                'name'  => $name,
+                'type'  => sanitize_text_field( wp_unslash( $types[ $i ] ?? '' ) ),
+                'image' => esc_url_raw( wp_unslash( $images[ $i ] ?? '' ) ),
+            ];
+        }
+        update_post_meta( $post_id, '_package_tiles_v2', $tiles_v2 );
     }
 } );
 

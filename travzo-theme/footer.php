@@ -121,13 +121,19 @@ $ftr_copy_line = $ftr_copyright
             <div class="footer-col footer-col--packages">
                 <h4 class="footer-col__heading">Our Packages</h4>
                 <ul class="footer-link-list">
-                    <li><a href="#"><?php esc_html_e( 'Group Tours', 'travzo' ); ?></a></li>
-                    <li><a href="#"><?php esc_html_e( 'Honeymoon Packages', 'travzo' ); ?></a></li>
-                    <li><a href="#"><?php esc_html_e( 'Solo Trips', 'travzo' ); ?></a></li>
-                    <li><a href="#"><?php esc_html_e( 'Devotional Tours', 'travzo' ); ?></a></li>
-                    <li><a href="#"><?php esc_html_e( 'Destination Weddings', 'travzo' ); ?></a></li>
-                    <li><a href="#"><?php esc_html_e( 'International Packages', 'travzo' ); ?></a></li>
-                    <li><a href="#"><?php esc_html_e( 'Daily Deals', 'travzo' ); ?></a></li>
+                    <?php
+                    $footer_pkg_types = [
+                        'Group Tours'          => 'Group Tour',
+                        'Honeymoon Packages'   => 'Honeymoon',
+                        'Solo Trips'           => 'Solo Trip',
+                        'Devotional Tours'     => 'Devotional',
+                        'Destination Weddings' => 'Destination Wedding',
+                        'International'        => 'International',
+                    ];
+                    foreach ( $footer_pkg_types as $display => $meta_val ) :
+                    ?>
+                    <li><a href="<?php echo esc_url( home_url( '/packages?type=' . urlencode( $meta_val ) ) ); ?>"><?php echo esc_html( $display ); ?></a></li>
+                    <?php endforeach; ?>
                 </ul>
             </div><!-- /.footer-col--packages -->
 

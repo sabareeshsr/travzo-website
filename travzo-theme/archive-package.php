@@ -211,9 +211,9 @@ $_pkg_hero_style = $_pkg_hero_img ? 'background-image:url(' . esc_url( $_pkg_her
                 <option value=""><?php esc_html_e( 'All Types', 'travzo' ); ?></option>
                 <?php
                 $types = [
-                    'Group Tours'         => 'Group Tours',
+                    'Group Tour'          => 'Group Tours',
                     'Honeymoon'           => 'Honeymoon',
-                    'Solo Trips'          => 'Solo Trips',
+                    'Solo Trip'           => 'Solo Trips',
                     'Devotional'          => 'Devotional',
                     'Destination Wedding' => 'Destination Wedding',
                     'International'       => 'International',

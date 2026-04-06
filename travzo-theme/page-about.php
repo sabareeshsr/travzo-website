@@ -66,9 +66,13 @@ get_header();
                 <?php else : ?>
                     <div class="about-img-placeholder"></div>
                 <?php endif; ?>
+                <?php
+                $badge_raw   = travzo_get( 'travzo_about_badge_text', '10+ Years of Excellence' );
+                $badge_parts = explode( ' ', $badge_raw, 2 );
+                ?>
                 <div class="about-experience-badge">
-                    <span class="badge-number">10+</span>
-                    <span class="badge-text"><?php esc_html_e( 'Years of Excellence', 'travzo' ); ?></span>
+                    <span class="badge-number"><?php echo esc_html( $badge_parts[0] ); ?></span>
+                    <span class="badge-text"><?php echo esc_html( $badge_parts[1] ?? '' ); ?></span>
                 </div>
             </div>
 
@@ -88,16 +92,16 @@ get_header();
 
                 <div class="about-inline-stats">
                     <div class="inline-stat">
-                        <span class="inline-stat-number">500+</span>
-                        <span class="inline-stat-label"><?php esc_html_e( 'Happy Travellers', 'travzo' ); ?></span>
+                        <span class="inline-stat-number"><?php echo esc_html( travzo_get( 'travzo_about_stat1_number', '500+' ) ); ?></span>
+                        <span class="inline-stat-label"><?php echo esc_html( travzo_get( 'travzo_about_stat1_label', 'Happy Travellers' ) ); ?></span>
                     </div>
                     <div class="inline-stat">
-                        <span class="inline-stat-number">50+</span>
-                        <span class="inline-stat-label"><?php esc_html_e( 'Destinations', 'travzo' ); ?></span>
+                        <span class="inline-stat-number"><?php echo esc_html( travzo_get( 'travzo_about_stat2_number', '50+' ) ); ?></span>
+                        <span class="inline-stat-label"><?php echo esc_html( travzo_get( 'travzo_about_stat2_label', 'Destinations' ) ); ?></span>
                     </div>
                     <div class="inline-stat">
-                        <span class="inline-stat-number">10+</span>
-                        <span class="inline-stat-label"><?php esc_html_e( 'Years Experience', 'travzo' ); ?></span>
+                        <span class="inline-stat-number"><?php echo esc_html( travzo_get( 'travzo_about_stat3_number', '10+' ) ); ?></span>
+                        <span class="inline-stat-label"><?php echo esc_html( travzo_get( 'travzo_about_stat3_label', 'Years Experience' ) ); ?></span>
                     </div>
                 </div>
 
@@ -113,23 +117,23 @@ get_header();
 <section class="stats-section">
     <div class="stats-inner">
         <div class="stat-block">
-            <div class="stat-number">500+</div>
-            <div class="stat-label"><?php esc_html_e( 'Happy Travellers', 'travzo' ); ?></div>
+            <div class="stat-number"><?php echo esc_html( travzo_get( 'travzo_about_stat1_number', '500+' ) ); ?></div>
+            <div class="stat-label"><?php echo esc_html( travzo_get( 'travzo_about_stat1_label', 'Happy Travellers' ) ); ?></div>
         </div>
         <div class="stat-divider" aria-hidden="true"></div>
         <div class="stat-block">
-            <div class="stat-number">50+</div>
-            <div class="stat-label"><?php esc_html_e( 'Destinations', 'travzo' ); ?></div>
+            <div class="stat-number"><?php echo esc_html( travzo_get( 'travzo_about_stat2_number', '50+' ) ); ?></div>
+            <div class="stat-label"><?php echo esc_html( travzo_get( 'travzo_about_stat2_label', 'Destinations' ) ); ?></div>
         </div>
         <div class="stat-divider" aria-hidden="true"></div>
         <div class="stat-block">
-            <div class="stat-number">10+</div>
-            <div class="stat-label"><?php esc_html_e( 'Years Experience', 'travzo' ); ?></div>
+            <div class="stat-number"><?php echo esc_html( travzo_get( 'travzo_about_stat3_number', '10+' ) ); ?></div>
+            <div class="stat-label"><?php echo esc_html( travzo_get( 'travzo_about_stat3_label', 'Years Experience' ) ); ?></div>
         </div>
         <div class="stat-divider" aria-hidden="true"></div>
         <div class="stat-block">
-            <div class="stat-number">100%</div>
-            <div class="stat-label"><?php esc_html_e( 'Customised Itineraries', 'travzo' ); ?></div>
+            <div class="stat-number"><?php echo esc_html( travzo_get( 'travzo_about_stat4_number', '100%' ) ); ?></div>
+            <div class="stat-label"><?php echo esc_html( travzo_get( 'travzo_about_stat4_label', 'Customised Itineraries' ) ); ?></div>
         </div>
     </div>
 </section>

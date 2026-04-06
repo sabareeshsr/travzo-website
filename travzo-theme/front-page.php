@@ -93,44 +93,6 @@ $hero_bg_style = $hero_image
         </div>
     </div><!-- /.hero-content -->
 
-    <!-- Floating search bar -->
-    <div class="hero-search-bar">
-        <div class="hero-search-bar__inner">
-            <div class="hero-search-field">
-                <label for="search-destination" class="hero-search-label">Destination</label>
-                <input id="search-destination" type="text" class="hero-search-input" placeholder="Where do you want to go?" aria-label="<?php esc_attr_e( 'Enter destination', 'travzo' ); ?>">
-            </div>
-            <div class="hero-search-divider" aria-hidden="true"></div>
-            <div class="hero-search-field">
-                <label for="search-type" class="hero-search-label">Package Type</label>
-                <select id="search-type" class="hero-search-input" aria-label="<?php esc_attr_e( 'Select package type', 'travzo' ); ?>">
-                    <option value=""><?php esc_html_e( 'Select Type', 'travzo' ); ?></option>
-                    <option value="group-tour"><?php esc_html_e( 'Group Tour', 'travzo' ); ?></option>
-                    <option value="honeymoon"><?php esc_html_e( 'Honeymoon', 'travzo' ); ?></option>
-                    <option value="solo"><?php esc_html_e( 'Solo', 'travzo' ); ?></option>
-                    <option value="devotional"><?php esc_html_e( 'Devotional', 'travzo' ); ?></option>
-                    <option value="destination-wedding"><?php esc_html_e( 'Destination Wedding', 'travzo' ); ?></option>
-                </select>
-            </div>
-            <div class="hero-search-divider" aria-hidden="true"></div>
-            <div class="hero-search-field">
-                <label for="search-duration" class="hero-search-label">Duration</label>
-                <select id="search-duration" class="hero-search-input" aria-label="<?php esc_attr_e( 'Select duration', 'travzo' ); ?>">
-                    <option value=""><?php esc_html_e( 'Any Duration', 'travzo' ); ?></option>
-                    <option value="3-5"><?php esc_html_e( '3–5 Days', 'travzo' ); ?></option>
-                    <option value="6-8"><?php esc_html_e( '6–8 Days', 'travzo' ); ?></option>
-                    <option value="9-12"><?php esc_html_e( '9–12 Days', 'travzo' ); ?></option>
-                    <option value="13+"><?php esc_html_e( '13+ Days', 'travzo' ); ?></option>
-                </select>
-            </div>
-            <button class="hero-search-btn" type="button">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                </svg>
-                <?php esc_html_e( 'Search', 'travzo' ); ?>
-            </button>
-        </div>
-    </div><!-- /.hero-search-bar -->
 </section>
 
 
@@ -138,42 +100,62 @@ $hero_bg_style = $hero_image
      SECTION 2 – OUR PACKAGES
 ════════════════════════════════════════════════════════════════ -->
 <?php
-$pkg_section_label   = 'WHAT WE OFFER';
-$pkg_section_heading = 'Our Packages';
+$pkg_section_label   = travzo_get( 'travzo_packages_label',   'WHAT WE OFFER' );
+$pkg_section_heading = travzo_get( 'travzo_packages_heading', 'Our Packages' );
 
-// cols: [0]=name, [1]=count, [2]=url, [3]=image
-$pkg_tiles_raw  = get_post_meta( get_the_ID(), '_package_tiles', true );
-$pkg_tiles_data = travzo_parse_lines( $pkg_tiles_raw, 4 );
-
-if ( empty( $pkg_tiles_data ) ) {
-    // Auto-count live packages per type
-    $type_map = [
-        'Group Tours'            => 'group-tour',
-        'Honeymoon Packages'     => 'honeymoon',
-        'Solo Trips'             => 'solo',
-        'Devotional Tours'       => 'devotional',
-        'Destination Weddings'   => 'destination-wedding',
-        'International Packages' => 'international',
+// Build default tiles from canonical package types — values match _package_type meta exactly
+$_pkg_types = [
+    [ 'label' => 'Group Tours',          'meta' => 'Group Tour',          'color' => '#1A3A5C' ],
+    [ 'label' => 'Honeymoon Packages',   'meta' => 'Honeymoon',           'color' => '#3D1A4A' ],
+    [ 'label' => 'Solo Trips',           'meta' => 'Solo Trip',           'color' => '#1A4A3D' ],
+    [ 'label' => 'Devotional Tours',     'meta' => 'Devotional',          'color' => '#4A3D1A' ],
+    [ 'label' => 'Destination Weddings', 'meta' => 'Destination Wedding', 'color' => '#1A2A5E' ],
+    [ 'label' => 'International',        'meta' => 'International',       'color' => '#2D1A4A' ],
+];
+$_default_tiles = [];
+foreach ( $_pkg_types as $pt ) {
+    $cq = new WP_Query( [
+        'post_type'      => 'package',
+        'post_status'    => 'publish',
+        'posts_per_page' => -1,
+        'fields'         => 'ids',
+        'meta_query'     => [ [ 'key' => '_package_type', 'value' => $pt['meta'], 'compare' => '=' ] ],
+    ] );
+    $cnt = $cq->found_posts;
+    wp_reset_postdata();
+    $_default_tiles[] = [
+        $pt['label'],
+        $cnt . ' Package' . ( $cnt !== 1 ? 's' : '' ),
+        home_url( '/packages?type=' . urlencode( $pt['meta'] ) ),
+        '',
+        $pt['color'],
     ];
+}
+
+// Use admin-configured tiles (_package_tiles_v2 repeater) if set, otherwise auto-generate
+$_custom_tiles = get_post_meta( get_the_ID(), '_package_tiles_v2', true );
+if ( is_array( $_custom_tiles ) && ! empty( $_custom_tiles ) ) {
     $pkg_tiles_data = [];
-    foreach ( $type_map as $label => $type_slug ) {
+    foreach ( $_custom_tiles as $ct ) {
         $cq = new WP_Query( [
             'post_type'      => 'package',
             'post_status'    => 'publish',
             'posts_per_page' => -1,
             'fields'         => 'ids',
-            'no_found_rows'  => false,
-            'meta_query'     => [ [ 'key' => '_package_type', 'value' => $type_slug, 'compare' => '=' ] ],
+            'meta_query'     => [ [ 'key' => '_package_type', 'value' => $ct['type'], 'compare' => '=' ] ],
         ] );
         $cnt = $cq->found_posts;
         wp_reset_postdata();
         $pkg_tiles_data[] = [
-            $label,
-            $cnt ? $cnt . ' Package' . ( $cnt !== 1 ? 's' : '' ) : '',
-            home_url( '/packages/?package_type=' . $type_slug ),
-            '',
+            $ct['name'],
+            $cnt . ' Package' . ( $cnt !== 1 ? 's' : '' ),
+            home_url( '/packages?type=' . urlencode( $ct['type'] ) ),
+            $ct['image'],
+            '#1A2A5E',
         ];
     }
+} else {
+    $pkg_tiles_data = $_default_tiles;
 }
 
 $pkg_tile_colors = [ '#2D5016', '#5C1A4A', '#1A3A5C', '#5C3A1A', '#1A5C4A', '#2A1A5C' ];
