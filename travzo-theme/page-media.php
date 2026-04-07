@@ -9,9 +9,13 @@
 /* ── Native post meta ────────────────────────────────────────────────────── */
 $post_id = get_the_ID();
 
-$hero_image   = travzo_get( 'travzo_media_hero_image', '' );
-$hero_heading = travzo_get( 'travzo_media_hero_title', 'Media & Press' );
-$hero_desc    = travzo_get( 'travzo_media_hero_desc',  'Our journey in photos, videos, press coverage and awards.' );
+$hero_heading = get_post_meta( $post_id, '_page_hero_title', true );
+$hero_desc    = get_post_meta( $post_id, '_page_hero_subtitle', true );
+$hero_image   = get_post_meta( $post_id, '_page_hero_image', true );
+// Backward compat: fall back to old customizer values
+if ( '' === $hero_heading ) $hero_heading = travzo_get( 'travzo_media_hero_title', 'Media & Press' );
+if ( '' === $hero_desc )    $hero_desc    = travzo_get( 'travzo_media_hero_desc',  'Our journey in photos, videos, press coverage and awards.' );
+if ( '' === $hero_image )   $hero_image   = travzo_get( 'travzo_media_hero_image', '' );
 $hero_style   = $hero_image ? 'background-image:url(' . esc_url( $hero_image ) . ');background-size:cover;background-position:center' : '';
 
 // Photo gallery: native WordPress attached images

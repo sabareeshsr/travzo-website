@@ -2,49 +2,9 @@
 /**
  * Front Page Template – Travzo Holidays Homepage
  *
- * TODO: Replace custom forms with WPForms shortcodes once WPForms is installed.
- * 1. Install WPForms plugin and create your forms.
- * 2. Go to Travzo Settings → WPForms Integration and enter the form IDs.
- * 3. The travzo_render_form() helper will automatically use WPForms when an ID is saved.
- *    Manual override: <?php echo do_shortcode('[wpforms id="YOUR_FORM_ID"]'); ?>
+ * Forms are submitted via AJAX to the travzo_handle_form_submit() handler
+ * in functions.php. No plugin dependency required.
  */
-
-// ── Section 8 form handling ────────────────────────────────────────────────────
-$enquiry_sent  = false;
-$enquiry_error = false;
-
-if ( isset( $_POST['travzo_enquiry'], $_POST['travzo_nonce'] ) &&
-     wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['travzo_nonce'] ) ), 'travzo_enquiry_form' ) ) {
-
-    $name        = sanitize_text_field( wp_unslash( $_POST['enquiry_name']        ?? '' ) );
-    $city        = sanitize_text_field( wp_unslash( $_POST['enquiry_city']        ?? '' ) );
-    $email       = sanitize_email(      wp_unslash( $_POST['enquiry_email']       ?? '' ) );
-    $phone       = sanitize_text_field( wp_unslash( $_POST['enquiry_phone']       ?? '' ) );
-    $destination = sanitize_text_field( wp_unslash( $_POST['enquiry_destination'] ?? '' ) );
-    $travel_date = sanitize_text_field( wp_unslash( $_POST['enquiry_date']        ?? '' ) );
-    $people      = absint(              wp_unslash( $_POST['enquiry_people']      ?? 1  ) );
-    $trip_type   = sanitize_text_field( wp_unslash( $_POST['enquiry_trip_type']   ?? '' ) );
-
-    if ( $name && $email && is_email( $email ) ) {
-        $to      = travzo_get( 'travzo_email', 'hello@travzoholidays.com' );
-        $subject = sprintf( 'New Enquiry from %s – Travzo Holidays', $name );
-        $body    = "New holiday enquiry received:\n\n"
-                 . "Name:        {$name}\n"
-                 . "City:        {$city}\n"
-                 . "Email:       {$email}\n"
-                 . "Phone:       {$phone}\n"
-                 . "Destination: {$destination}\n"
-                 . "Travel Date: {$travel_date}\n"
-                 . "No. People:  {$people}\n"
-                 . "Trip Type:   {$trip_type}\n";
-        $headers = [ 'Content-Type: text/plain; charset=UTF-8', "Reply-To: {$name} <{$email}>" ];
-
-        $enquiry_sent  = wp_mail( $to, $subject, $body, $headers );
-        $enquiry_error = ! $enquiry_sent;
-    } else {
-        $enquiry_error = true;
-    }
-}
 
 get_header();
 ?>
@@ -64,6 +24,21 @@ $hero_primary_btn_url    = get_post_meta( $_pid, '_homepage_hero_btn1_url', true
 $hero_secondary_btn_text = get_post_meta( $_pid, '_homepage_hero_btn2_text', true );
 $hero_secondary_btn_url  = get_post_meta( $_pid, '_homepage_hero_btn2_url', true );
 $hero_image              = get_post_meta( $_pid, '_homepage_hero_image', true );
+$hero_mode               = get_post_meta( $_pid, '_homepage_hero_mode', true ) ?: 'single';
+$hero_slides_raw         = get_post_meta( $_pid, '_homepage_hero_slides', true );
+$hero_interval           = get_post_meta( $_pid, '_homepage_hero_interval', true );
+if ( '' === $hero_interval ) $hero_interval = 5;
+
+// Parse slide IDs
+if ( ! is_array( $hero_slides_raw ) ) {
+    $hero_slides_raw = $hero_slides_raw ? array_filter( array_map( 'absint', explode( ',', $hero_slides_raw ) ) ) : [];
+}
+$hero_slides = array_filter( $hero_slides_raw );
+
+// If slideshow mode but no slides, fall back to single
+if ( 'slideshow' === $hero_mode && empty( $hero_slides ) ) {
+    $hero_mode = 'single';
+}
 
 // Backward compat: pull old customizer values
 if ( '' === $hero_badge && '' === $hero_heading && '' === $hero_subtext ) {
@@ -86,11 +61,119 @@ if ( ! $hero_primary_btn_url )    $hero_primary_btn_url    = home_url( '/package
 if ( ! $hero_secondary_btn_text ) $hero_secondary_btn_text = 'Enquire Now';
 if ( ! $hero_secondary_btn_url )  $hero_secondary_btn_url  = home_url( '/contact' );
 
-$hero_bg_style = $hero_image
-    ? 'background-image: url(' . esc_url( $hero_image ) . ');'
-    : 'background: linear-gradient(135deg, #1A2A5E 0%, #2D4080 100%);';
+// Search bar settings
+$hero_search_enabled = get_post_meta( $_pid, '_homepage_hero_search_enabled', true );
+$hero_search_ph      = get_post_meta( $_pid, '_homepage_hero_search_placeholder', true ) ?: 'Search destinations...';
+$hero_filters        = get_post_meta( $_pid, '_homepage_hero_filters_enabled', true );
+if ( ! is_array( $hero_filters ) ) $hero_filters = [];
+$hero_has_search = ( '1' === $hero_search_enabled );
+$hero_extra_cls  = $hero_has_search ? ' hero-search-bar-active' : '';
+
+if ( 'slideshow' === $hero_mode ) :
+    // ── Slideshow Hero ──
 ?>
-<section class="hero-section" style="<?php echo $hero_bg_style; ?>">
+<div class="hero-wrapper">
+<section class="hero-section hero-section--slideshow<?php echo $hero_extra_cls; ?>">
+    <div class="hero-slideshow" data-interval="<?php echo esc_attr( $hero_interval * 1000 ); ?>">
+        <div class="hero-slides">
+            <?php foreach ( $hero_slides as $si => $slide_id ) :
+                $slide_url = wp_get_attachment_image_url( $slide_id, 'full' );
+                if ( ! $slide_url ) continue;
+            ?>
+            <div class="hero-slide<?php echo 0 === $si ? ' active' : ''; ?>" style="background-image:url(<?php echo esc_url( $slide_url ); ?>)"></div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+
+    <div class="hero-overlay"></div>
+
+    <button class="hero-arrow hero-prev" aria-label="<?php esc_attr_e( 'Previous slide', 'travzo' ); ?>">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <button class="hero-arrow hero-next" aria-label="<?php esc_attr_e( 'Next slide', 'travzo' ); ?>">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg>
+    </button>
+
+    <div class="hero-dots">
+        <?php foreach ( $hero_slides as $di => $sid ) : ?>
+        <button class="hero-dot<?php echo 0 === $di ? ' active' : ''; ?>" data-index="<?php echo $di; ?>" aria-label="<?php printf( esc_attr__( 'Go to slide %d', 'travzo' ), $di + 1 ); ?>"></button>
+        <?php endforeach; ?>
+    </div>
+
+    <div class="hero-content">
+        <span class="hero-badge">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M17.8 19.2L16 11l3.5-3.5C21 6 21 4 19.5 2.5S18 2 17 3l-.5.5L17.8 7l-5 .8-2.7-2.7C9.5 4.5 8 4.5 8 5.5s0 1.5.5 2L10 9l-3.5 1L4.8 8.2C4.3 7.7 3 7.5 3 8.5s.5 1.5.5 1.5L6 12l-.5 4L8 14.5l2 2L12 20l-1.5 2.5c0 .5.5 1 1.5 1s1.5-.5 2-1l-.2-1.5 3-3.5 1.3 2.2c.5.5 1.5.8 2 .5s.8-1 .2-2z"/>
+            </svg>
+            <?php echo esc_html( $hero_badge ); ?>
+        </span>
+        <h1 class="hero-heading"><?php echo nl2br( esc_html( $hero_heading ) ); ?></h1>
+        <p class="hero-subtext"><?php echo esc_html( $hero_subtext ); ?></p>
+        <div class="hero-buttons">
+            <a href="<?php echo esc_url( $hero_primary_btn_url ); ?>" class="btn btn--gold"><?php echo esc_html( $hero_primary_btn_text ); ?></a>
+            <a href="<?php echo esc_url( $hero_secondary_btn_url ); ?>" class="btn btn--ghost-white"><?php echo esc_html( $hero_secondary_btn_text ); ?></a>
+        </div>
+    </div>
+
+    <?php if ( $hero_has_search ) : ?>
+    <div class="hero-search-bar">
+        <form action="<?php echo esc_url( get_post_type_archive_link( 'package' ) ?: home_url( '/packages/' ) ); ?>" method="get">
+            <div class="hero-search-input-wrap">
+                <svg class="hero-search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" name="sq" placeholder="<?php echo esc_attr( $hero_search_ph ); ?>">
+            </div>
+            <?php if ( in_array( 'type', $hero_filters, true ) ) : ?>
+            <select name="type">
+                <option value="">All Types</option>
+                <option value="Group Tour">Group Tours</option>
+                <option value="Honeymoon">Honeymoon</option>
+                <option value="Solo Trip">Solo Trips</option>
+                <option value="Devotional">Devotional</option>
+                <option value="Destination Wedding">Destination Wedding</option>
+            </select>
+            <?php endif; ?>
+            <?php if ( in_array( 'region', $hero_filters, true ) ) : ?>
+            <select name="region">
+                <option value="">All Regions</option>
+                <option value="domestic">India</option>
+                <option value="international">International</option>
+            </select>
+            <?php endif; ?>
+            <?php if ( in_array( 'duration', $hero_filters, true ) ) : ?>
+            <select name="duration">
+                <option value="">Any Duration</option>
+                <option value="3-5">3–5 Days</option>
+                <option value="6-8">6–8 Days</option>
+                <option value="9-12">9–12 Days</option>
+                <option value="13+">13+ Days</option>
+            </select>
+            <?php endif; ?>
+            <?php if ( in_array( 'budget', $hero_filters, true ) ) : ?>
+            <select name="budget">
+                <option value="">Any Budget</option>
+                <option value="under-15000">Under ₹15,000</option>
+                <option value="15000-30000">₹15,000 – ₹30,000</option>
+                <option value="30000-60000">₹30,000 – ₹60,000</option>
+                <option value="above-60000">₹60,000+</option>
+            </select>
+            <?php endif; ?>
+            <button type="submit" class="hero-search-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                Search
+            </button>
+        </form>
+    </div>
+    <?php endif; ?>
+</section>
+</div>
+<?php else :
+    // ── Single Image Hero ──
+    $hero_bg_style = $hero_image
+        ? 'background-image: url(' . esc_url( $hero_image ) . ');'
+        : 'background: linear-gradient(135deg, #1A2A5E 0%, #2D4080 100%);';
+?>
+<div class="hero-wrapper">
+<section class="hero-section<?php echo $hero_extra_cls; ?>" style="<?php echo $hero_bg_style; ?>">
     <div class="hero-overlay"></div>
 
     <div class="hero-content">
@@ -100,84 +183,92 @@ $hero_bg_style = $hero_image
             </svg>
             <?php echo esc_html( $hero_badge ); ?>
         </span>
-
         <h1 class="hero-heading"><?php echo nl2br( esc_html( $hero_heading ) ); ?></h1>
-
         <p class="hero-subtext"><?php echo esc_html( $hero_subtext ); ?></p>
-
         <div class="hero-buttons">
-            <a href="<?php echo esc_url( $hero_primary_btn_url ); ?>" class="btn btn--gold">
-                <?php echo esc_html( $hero_primary_btn_text ); ?>
-            </a>
-            <a href="<?php echo esc_url( $hero_secondary_btn_url ); ?>" class="btn btn--ghost-white">
-                <?php echo esc_html( $hero_secondary_btn_text ); ?>
-            </a>
+            <a href="<?php echo esc_url( $hero_primary_btn_url ); ?>" class="btn btn--gold"><?php echo esc_html( $hero_primary_btn_text ); ?></a>
+            <a href="<?php echo esc_url( $hero_secondary_btn_url ); ?>" class="btn btn--ghost-white"><?php echo esc_html( $hero_secondary_btn_text ); ?></a>
         </div>
-    </div><!-- /.hero-content -->
+    </div>
 
+    <?php if ( $hero_has_search ) : ?>
+    <div class="hero-search-bar">
+        <form action="<?php echo esc_url( get_post_type_archive_link( 'package' ) ?: home_url( '/packages/' ) ); ?>" method="get">
+            <div class="hero-search-input-wrap">
+                <svg class="hero-search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" name="sq" placeholder="<?php echo esc_attr( $hero_search_ph ); ?>">
+            </div>
+            <?php if ( in_array( 'type', $hero_filters, true ) ) : ?>
+            <select name="type">
+                <option value="">All Types</option>
+                <option value="Group Tour">Group Tours</option>
+                <option value="Honeymoon">Honeymoon</option>
+                <option value="Solo Trip">Solo Trips</option>
+                <option value="Devotional">Devotional</option>
+                <option value="Destination Wedding">Destination Wedding</option>
+            </select>
+            <?php endif; ?>
+            <?php if ( in_array( 'region', $hero_filters, true ) ) : ?>
+            <select name="region">
+                <option value="">All Regions</option>
+                <option value="domestic">India</option>
+                <option value="international">International</option>
+            </select>
+            <?php endif; ?>
+            <?php if ( in_array( 'duration', $hero_filters, true ) ) : ?>
+            <select name="duration">
+                <option value="">Any Duration</option>
+                <option value="3-5">3–5 Days</option>
+                <option value="6-8">6–8 Days</option>
+                <option value="9-12">9–12 Days</option>
+                <option value="13+">13+ Days</option>
+            </select>
+            <?php endif; ?>
+            <?php if ( in_array( 'budget', $hero_filters, true ) ) : ?>
+            <select name="budget">
+                <option value="">Any Budget</option>
+                <option value="under-15000">Under ₹15,000</option>
+                <option value="15000-30000">₹15,000 – ₹30,000</option>
+                <option value="30000-60000">₹30,000 – ₹60,000</option>
+                <option value="above-60000">₹60,000+</option>
+            </select>
+            <?php endif; ?>
+            <button type="submit" class="hero-search-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                Search
+            </button>
+        </form>
+    </div>
+    <?php endif; ?>
 </section>
+</div>
+<?php endif; ?>
 
 
 <!-- ════════════════════════════════════════════════════════════════
      SECTION 2 – OUR PACKAGES
 ════════════════════════════════════════════════════════════════ -->
 <?php
-$pkg_section_label   = travzo_get( 'travzo_packages_label',   'WHAT WE OFFER' );
-$pkg_section_heading = travzo_get( 'travzo_packages_heading', 'Our Packages' );
+$_pid = get_the_ID();
+$pkg_section_label   = get_post_meta( $_pid, '_homepage_packages_label', true );
+$pkg_section_heading = get_post_meta( $_pid, '_homepage_packages_heading', true );
 
-// Build default tiles from canonical package types — values match _package_type meta exactly
-$_pkg_types = [
-    [ 'label' => 'Group Tours',          'meta' => 'Group Tour',          'color' => '#1A3A5C' ],
-    [ 'label' => 'Honeymoon Packages',   'meta' => 'Honeymoon',           'color' => '#3D1A4A' ],
-    [ 'label' => 'Solo Trips',           'meta' => 'Solo Trip',           'color' => '#1A4A3D' ],
-    [ 'label' => 'Devotional Tours',     'meta' => 'Devotional',          'color' => '#4A3D1A' ],
-    [ 'label' => 'Destination Weddings', 'meta' => 'Destination Wedding', 'color' => '#1A2A5E' ],
-    [ 'label' => 'International',        'meta' => 'International',       'color' => '#2D1A4A' ],
-];
-$_default_tiles = [];
-foreach ( $_pkg_types as $pt ) {
-    $cq = new WP_Query( [
-        'post_type'      => 'package',
-        'post_status'    => 'publish',
-        'posts_per_page' => -1,
-        'fields'         => 'ids',
-        'meta_query'     => [ [ 'key' => '_package_type', 'value' => $pt['meta'], 'compare' => '=' ] ],
-    ] );
-    $cnt = $cq->found_posts;
-    wp_reset_postdata();
-    $_default_tiles[] = [
-        $pt['label'],
-        $cnt . ' Package' . ( $cnt !== 1 ? 's' : '' ),
-        home_url( '/packages?type=' . urlencode( $pt['meta'] ) ),
-        '',
-        $pt['color'],
+// Backward compat: old customizer values
+if ( ! $pkg_section_label )   $pkg_section_label   = get_theme_mod( 'travzo_packages_label', '' ) ?: 'WHAT WE OFFER';
+if ( ! $pkg_section_heading ) $pkg_section_heading = get_theme_mod( 'travzo_packages_heading', '' ) ?: 'Our Packages';
+
+// Load tiles from meta or fall back to defaults
+$_custom_tiles = get_post_meta( $_pid, '_package_tiles_v2', true );
+if ( ! is_array( $_custom_tiles ) || empty( $_custom_tiles ) ) {
+    // Default: one tile per canonical package type
+    $_custom_tiles = [
+        [ 'name' => 'Group Tours',          'type' => 'Group Tour',          'region' => '', 'country' => '', 'subregion' => '', 'destination' => '', 'duration' => '', 'budget' => '', 'url' => '', 'image' => 0 ],
+        [ 'name' => 'Honeymoon Packages',   'type' => 'Honeymoon',           'region' => '', 'country' => '', 'subregion' => '', 'destination' => '', 'duration' => '', 'budget' => '', 'url' => '', 'image' => 0 ],
+        [ 'name' => 'Solo Trips',           'type' => 'Solo Trip',           'region' => '', 'country' => '', 'subregion' => '', 'destination' => '', 'duration' => '', 'budget' => '', 'url' => '', 'image' => 0 ],
+        [ 'name' => 'Devotional Tours',     'type' => 'Devotional',          'region' => '', 'country' => '', 'subregion' => '', 'destination' => '', 'duration' => '', 'budget' => '', 'url' => '', 'image' => 0 ],
+        [ 'name' => 'Destination Weddings', 'type' => 'Destination Wedding', 'region' => '', 'country' => '', 'subregion' => '', 'destination' => '', 'duration' => '', 'budget' => '', 'url' => '', 'image' => 0 ],
+        [ 'name' => 'International',        'type' => 'International',       'region' => '', 'country' => '', 'subregion' => '', 'destination' => '', 'duration' => '', 'budget' => '', 'url' => '', 'image' => 0 ],
     ];
-}
-
-// Use admin-configured tiles (_package_tiles_v2 repeater) if set, otherwise auto-generate
-$_custom_tiles = get_post_meta( get_the_ID(), '_package_tiles_v2', true );
-if ( is_array( $_custom_tiles ) && ! empty( $_custom_tiles ) ) {
-    $pkg_tiles_data = [];
-    foreach ( $_custom_tiles as $ct ) {
-        $cq = new WP_Query( [
-            'post_type'      => 'package',
-            'post_status'    => 'publish',
-            'posts_per_page' => -1,
-            'fields'         => 'ids',
-            'meta_query'     => [ [ 'key' => '_package_type', 'value' => $ct['type'], 'compare' => '=' ] ],
-        ] );
-        $cnt = $cq->found_posts;
-        wp_reset_postdata();
-        $pkg_tiles_data[] = [
-            $ct['name'],
-            $cnt . ' Package' . ( $cnt !== 1 ? 's' : '' ),
-            home_url( '/packages?type=' . urlencode( $ct['type'] ) ),
-            $ct['image'],
-            '#1A2A5E',
-        ];
-    }
-} else {
-    $pkg_tiles_data = $_default_tiles;
 }
 
 $pkg_tile_colors = [ '#2D5016', '#5C1A4A', '#1A3A5C', '#5C3A1A', '#1A5C4A', '#2A1A5C' ];
@@ -188,14 +279,30 @@ $pkg_tile_colors = [ '#2D5016', '#5C1A4A', '#1A3A5C', '#5C3A1A', '#1A5C4A', '#2A
         <h2 class="section-heading"><?php echo esc_html( $pkg_section_heading ); ?></h2>
 
         <div class="package-tiles-grid">
-            <?php foreach ( $pkg_tiles_data as $idx => $tile ) :
-                $t_name  = $tile[0] ?? '';
-                $t_count = $tile[1] ?? '';
-                $t_url   = $tile[2] ?? home_url( '/packages' );
-                $t_image = $tile[3] ?? '';
+            <?php foreach ( $_custom_tiles as $idx => $ct ) :
+                $ct = wp_parse_args( $ct, [
+                    'name' => '', 'type' => '', 'region' => '', 'country' => '',
+                    'subregion' => '', 'destination' => '', 'duration' => '',
+                    'budget' => '', 'url' => '', 'image' => 0, 'image_url' => '',
+                ] );
+
+                // Count matching packages
+                $cnt = travzo_tile_count_packages( $ct );
+                $t_count = $cnt . ' Package' . ( $cnt !== 1 ? 's' : '' );
+
+                // Build URL: custom or auto-generated from filters
+                $t_url = trim( $ct['url'] ) ? $ct['url'] : travzo_tile_build_url( $ct );
+
+                // Resolve cover image
+                $t_img_id  = absint( $ct['image'] );
+                $t_img_url = $t_img_id ? wp_get_attachment_image_url( $t_img_id, 'large' ) : '';
+                if ( ! $t_img_url && ! empty( $ct['image_url'] ) ) {
+                    $t_img_url = $ct['image_url']; // fallback for migrated tiles
+                }
+
                 $t_color = $pkg_tile_colors[ $idx % count( $pkg_tile_colors ) ];
-                $t_style = $t_image
-                    ? 'background-image: url(' . esc_url( $t_image ) . ');'
+                $t_style = $t_img_url
+                    ? 'background-image: url(' . esc_url( $t_img_url ) . ');'
                     : 'background-color: ' . esc_attr( $t_color ) . ';';
             ?>
             <a href="<?php echo esc_url( $t_url ); ?>"
@@ -203,7 +310,7 @@ $pkg_tile_colors = [ '#2D5016', '#5C1A4A', '#1A3A5C', '#5C3A1A', '#1A5C4A', '#2A
                style="<?php echo $t_style; ?>">
                 <div class="package-tile__overlay"></div>
                 <div class="package-tile__content">
-                    <span class="package-tile__name"><?php echo esc_html( $t_name ); ?></span>
+                    <span class="package-tile__name"><?php echo esc_html( $ct['name'] ); ?></span>
                     <?php if ( $t_count ) : ?>
                     <span class="package-tile__count"><?php echo esc_html( $t_count ); ?></span>
                     <?php endif; ?>
@@ -424,10 +531,12 @@ $about_features = array_filter( array_map( 'trim', explode( "\n", $about_keypoin
                     <?php if ( $duration ) : ?>
                         <span class="package-card__duration"><?php echo esc_html( $duration ); ?></span>
                     <?php endif; ?>
-                    <?php if ( $price ) : ?>
+                    <?php if ( $price ) :
+                        $price_fmt = is_numeric( $price ) ? '₹' . number_format( (int) $price ) : $price;
+                    ?>
                         <div class="package-card__price">
                             <span class="package-card__price-from"><?php esc_html_e( 'Starting from', 'travzo' ); ?></span>
-                            <span class="package-card__price-amount"><?php echo esc_html( $price ); ?></span>
+                            <span class="package-card__price-amount"><?php echo esc_html( $price_fmt ); ?></span>
                         </div>
                     <?php endif; ?>
                     <a href="<?php the_permalink(); ?>" class="btn btn--navy btn--full">
@@ -699,7 +808,7 @@ $enq_wa_url    = $enq_whatsapp ? 'https://wa.me/' . preg_replace( '/[^0-9]/', ''
 
         <!-- Right: form card -->
         <div class="enquiry-form-card">
-            <?php travzo_render_form( 'travzo_form_enquiry', travzo_default_enquiry_form() ); ?>
+            <?php travzo_render_form( travzo_default_enquiry_form() ); ?>
         </div><!-- /.enquiry-form-card -->
 
     </div>
@@ -805,8 +914,13 @@ $enq_wa_url    = $enq_whatsapp ? 'https://wa.me/' . preg_replace( '/[^0-9]/', ''
      SECTION 10 – NEWSLETTER
 ════════════════════════════════════════════════════════════════ -->
 <?php
-$nl_heading     = travzo_get( 'travzo_newsletter_heading', 'Get Travel Deals in Your Inbox' );
-$nl_subtext     = travzo_get( 'travzo_newsletter_subtext', 'Subscribe and be the first to know about our exclusive offers.' );
+$_pid = get_the_ID();
+$nl_heading = get_post_meta( $_pid, '_homepage_newsletter_heading', true );
+$nl_subtext = get_post_meta( $_pid, '_homepage_newsletter_subtext', true );
+
+// Backward compat: old customizer values
+if ( ! $nl_heading ) $nl_heading = get_theme_mod( 'travzo_newsletter_heading', '' ) ?: 'Get Travel Deals in Your Inbox';
+if ( ! $nl_subtext ) $nl_subtext = get_theme_mod( 'travzo_newsletter_subtext', '' ) ?: 'Subscribe and be the first to know about our exclusive offers.';
 $nl_button_text = 'Subscribe';
 ?>
 <section class="newsletter-section">
@@ -823,14 +937,21 @@ $nl_button_text = 'Subscribe';
         <p class="newsletter-subtext"><?php echo esc_html( $nl_subtext ); ?></p>
 
         <?php
-        $nl_fallback = '<form class="newsletter-form" action="#" method="POST">'
-            . wp_nonce_field( 'travzo_newsletter', 'travzo_newsletter_nonce', true, false )
-            . '<div class="newsletter-form__pill">'
-            . '<label for="newsletter-email" class="screen-reader-text">Your email address</label>'
-            . '<input type="email" id="newsletter-email" name="newsletter_email" required placeholder="Enter your email address…">'
-            . '<button type="submit">Subscribe</button>'
-            . '</div></form>';
-        travzo_render_form( 'travzo_form_newsletter', $nl_fallback );
+        ?>
+        <form class="travzo-form newsletter-form" data-form-type="newsletter">
+            <?php wp_nonce_field( 'travzo_form_submit', 'travzo_form_nonce' ); ?>
+            <input type="hidden" name="action" value="travzo_form_submit">
+            <input type="hidden" name="form_type" value="newsletter">
+            <div class="newsletter-form__pill">
+                <label for="newsletter-email" class="screen-reader-text">Your email address</label>
+                <input type="email" id="newsletter-email" name="email" required placeholder="Enter your email address…">
+                <button type="submit" class="form-submit-btn">Subscribe</button>
+            </div>
+            <?php travzo_render_captcha(); ?>
+            <div class="form-success" style="display:none">You're subscribed! Watch your inbox for travel deals.</div>
+            <div class="form-error" style="display:none">Something went wrong. Please try again.</div>
+        </form>
+        <?php
         ?>
 
     </div>

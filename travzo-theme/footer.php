@@ -99,10 +99,17 @@ $ftr_copy_line = $ftr_copyright
                             home_url( '/faq' )                 => __( 'FAQs', 'travzo' ),
                             home_url( '/media' )               => __( 'Media', 'travzo' ),
                             home_url( '/contact' )             => __( 'Contact Us', 'travzo' ),
-                            home_url( '/privacy-policy' )      => __( 'Privacy Policy', 'travzo' ),
-                            home_url( '/terms-conditions' )    => __( 'Terms &amp; Conditions', 'travzo' ),
-                            home_url( '/cancellation-policy' ) => __( 'Cancellation Policy', 'travzo' ),
                         ];
+                        // Dynamic legal page links
+                        $legal_tpls = [
+                            'page-privacy.php'      => __( 'Privacy Policy', 'travzo' ),
+                            'page-terms.php'        => __( 'Terms &amp; Conditions', 'travzo' ),
+                            'page-cancellation.php' => __( 'Cancellation Policy', 'travzo' ),
+                        ];
+                        foreach ( $legal_tpls as $tpl => $label ) {
+                            $pages = get_pages( [ 'meta_key' => '_wp_page_template', 'meta_value' => $tpl, 'number' => 1 ] );
+                            $links[ ! empty( $pages ) ? get_permalink( $pages[0]->ID ) : '#' ] = $label;
+                        }
                         echo '<ul class="footer-link-list">';
                         foreach ( $links as $url => $label ) {
                             printf(
@@ -219,13 +226,15 @@ $ftr_copy_line = $ftr_copyright
                     'items_wrap'     => '%3$s',
                     'depth'          => 1,
                     'fallback_cb'    => function () {
-                        $legal_links = [
-                            home_url( '/privacy-policy' )      => __( 'Privacy Policy', 'travzo' ),
-                            home_url( '/terms-conditions' )    => __( 'Terms &amp; Conditions', 'travzo' ),
-                            home_url( '/cancellation-policy' ) => __( 'Cancellation Policy', 'travzo' ),
+                        $legal_templates = [
+                            'page-privacy.php'      => __( 'Privacy Policy', 'travzo' ),
+                            'page-terms.php'        => __( 'Terms &amp; Conditions', 'travzo' ),
+                            'page-cancellation.php' => __( 'Cancellation Policy', 'travzo' ),
                         ];
                         $i = 0;
-                        foreach ( $legal_links as $url => $label ) {
+                        foreach ( $legal_templates as $tpl => $label ) {
+                            $pages = get_pages( [ 'meta_key' => '_wp_page_template', 'meta_value' => $tpl, 'number' => 1 ] );
+                            $url = ! empty( $pages ) ? get_permalink( $pages[0]->ID ) : '#';
                             if ( $i > 0 ) {
                                 echo '<span class="footer-bottom__sep" aria-hidden="true">|</span>';
                             }

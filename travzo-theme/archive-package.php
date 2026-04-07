@@ -5,8 +5,12 @@
  */
 
 // ── Read & sanitise GET filter params ─────────────────────────────────────────
+$f_sq          = isset( $_GET['sq'] )          ? sanitize_text_field( wp_unslash( $_GET['sq'] ) )          : '';
 $f_destination = isset( $_GET['destination'] ) ? sanitize_text_field( wp_unslash( $_GET['destination'] ) ) : '';
 $f_type        = isset( $_GET['type'] )        ? sanitize_text_field( wp_unslash( $_GET['type'] ) )        : '';
+$f_region      = isset( $_GET['region'] )      ? sanitize_text_field( wp_unslash( $_GET['region'] ) )      : '';
+$f_country     = isset( $_GET['country'] )     ? sanitize_text_field( wp_unslash( $_GET['country'] ) )     : '';
+$f_subregion   = isset( $_GET['subregion'] )   ? sanitize_text_field( wp_unslash( $_GET['subregion'] ) )   : '';
 $f_duration    = isset( $_GET['duration'] )    ? sanitize_text_field( wp_unslash( $_GET['duration'] ) )    : '';
 $f_budget      = isset( $_GET['budget'] )      ? sanitize_text_field( wp_unslash( $_GET['budget'] ) )      : '';
 $f_sort        = isset( $_GET['sort'] )        ? sanitize_text_field( wp_unslash( $_GET['sort'] ) )        : 'latest';
@@ -24,12 +28,40 @@ if ( $f_type ) {
     ];
 }
 
+// Filter: Region → native meta key '_pkg_region'
+if ( $f_region ) {
+    $meta_query[] = [
+        'key'     => '_pkg_region',
+        'value'   => $f_region,
+        'compare' => '=',
+    ];
+}
+
+// Filter: Country → native meta key '_pkg_country'
+if ( $f_country ) {
+    $meta_query[] = [
+        'key'     => '_pkg_country',
+        'value'   => $f_country,
+        'compare' => '=',
+    ];
+}
+
 // Filter: Destination → native meta key '_package_destinations'
 if ( $f_destination ) {
     $meta_query[] = [
         'key'     => '_package_destinations',
         'value'   => $f_destination,
         'compare' => 'LIKE',
+    ];
+}
+
+// Filter: Sub-region → taxonomy query
+$tax_query = [];
+if ( $f_subregion ) {
+    $tax_query[] = [
+        'taxonomy' => 'package_destination',
+        'field'    => 'name',
+        'terms'    => $f_subregion,
     ];
 }
 
@@ -84,6 +116,16 @@ switch ( $f_sort ) {
         $order         = 'ASC';
         $meta_key_sort = '_package_duration';
         break;
+    case 'duration-desc':
+        $orderby       = 'meta_value_num';
+        $order         = 'DESC';
+        $meta_key_sort = '_package_duration';
+        break;
+    case 'popular':
+        $orderby       = 'meta_value_num';
+        $order         = 'DESC';
+        $meta_key_sort = '_is_trending';
+        break;
 }
 
 $query_args = [
@@ -95,8 +137,17 @@ $query_args = [
     'order'          => $order,
 ];
 
+// Search
+if ( $f_sq ) {
+    $query_args['s'] = $f_sq;
+}
+
 if ( count( $meta_query ) > 1 ) {
     $query_args['meta_query'] = $meta_query;
+}
+
+if ( ! empty( $tax_query ) ) {
+    $query_args['tax_query'] = $tax_query;
 }
 
 if ( $meta_key_sort ) {
@@ -104,6 +155,9 @@ if ( $meta_key_sort ) {
 }
 
 $packages = new WP_Query( $query_args );
+
+// Check if any filters are active
+$has_active_filters = $f_sq || $f_destination || $f_type || $f_region || $f_country || $f_subregion || $f_duration || $f_budget;
 
 // ── Star SVG helper ────────────────────────────────────────────────────────────
 $star_svg = '<svg width="13" height="13" viewBox="0 0 24 24" fill="#C9A227" aria-hidden="true">'
@@ -162,153 +216,215 @@ $_pkg_hero_style = $_pkg_hero_img ? 'background-image:url(' . esc_url( $_pkg_her
 <!-- ════════════════════════════════════════════════════════════
      SECTION 2 – FILTER BAR
 ════════════════════════════════════════════════════════════ -->
+<?php
+// Pre-fetch unique destinations — split by comma AND pipe, clean junk
+$dest_posts = get_posts( [
+    'post_type'      => 'package',
+    'post_status'    => 'publish',
+    'posts_per_page' => -1,
+    'fields'         => 'ids',
+] );
+$all_dests = [];
+foreach ( $dest_posts as $pid ) {
+    $raw = get_post_meta( $pid, '_package_destinations', true );
+    if ( $raw ) {
+        // Split by comma or pipe
+        $pieces = preg_split( '/[,|]+/', $raw );
+        foreach ( $pieces as $d ) {
+            $d = trim( $d );
+            // Filter: non-empty, not purely numeric, at least 2 chars
+            if ( $d && ! ctype_digit( $d ) && mb_strlen( $d ) >= 2 ) {
+                $all_dests[ $d ] = $d;
+            }
+        }
+    }
+}
+ksort( $all_dests );
+
+// Pre-fetch unique countries
+$all_countries = [];
+foreach ( $dest_posts as $pid ) {
+    $c = get_post_meta( $pid, '_pkg_country', true );
+    if ( $c ) $all_countries[ $c ] = $c;
+}
+ksort( $all_countries );
+
+// Sub-region options
+$india_subregions = [ 'North India', 'South India', 'East India', 'West India', 'Northeast India', 'Himalayas' ];
+$intl_subregions  = [ 'Southeast Asia', 'East Asia', 'Middle East', 'Europe', 'Americas', 'Africa', 'Oceania' ];
+
+// Duration + Budget label maps (used in chips)
+$durations = [
+    '3-5'  => '3–5 Days',
+    '6-8'  => '6–8 Days',
+    '9-12' => '9–12 Days',
+    '13+'  => '13+ Days',
+];
+$budgets = [
+    'under-15000'  => 'Under ₹15,000',
+    '15000-30000'  => '₹15,000 – ₹30,000',
+    '30000-60000'  => '₹30,000 – ₹60,000',
+    'above-60000'  => '₹60,000+',
+];
+$sorts = [
+    'latest'        => 'Sort By: Latest',
+    'price-asc'     => 'Price: Low to High',
+    'price-desc'    => 'Price: High to Low',
+    'duration-asc'  => 'Duration: Short to Long',
+    'duration-desc' => 'Duration: Long to Short',
+    'popular'       => 'Most Popular',
+];
+?>
 <div class="filter-bar" id="filter-bar">
     <form class="filter-bar__form" id="filter-form" method="GET"
           action="<?php echo esc_url( get_post_type_archive_link( 'package' ) ); ?>">
 
-        <span class="filter-bar__label"><?php esc_html_e( 'Filter By:', 'travzo' ); ?></span>
+        <!-- ROW 1: Search -->
+        <div class="filter-bar__row filter-bar__row--search">
+            <div class="filter-search-wrap">
+                <svg class="filter-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" name="sq" id="filter-search" class="filter-search-input"
+                       value="<?php echo esc_attr( $f_sq ); ?>"
+                       placeholder="<?php esc_attr_e( 'Search packages by name, destination...', 'travzo' ); ?>"
+                       aria-label="<?php esc_attr_e( 'Search packages', 'travzo' ); ?>">
+            </div>
+        </div>
 
-        <!-- Destination -->
-        <div class="filter-select-wrap">
-            <select id="filter-destination" name="destination" class="filter-select" aria-label="<?php esc_attr_e( 'Filter by destination', 'travzo' ); ?>">
-                <option value=""><?php esc_html_e( 'All Destinations', 'travzo' ); ?></option>
-                <?php
-                // Auto-fetch all unique destinations from live package meta
-                $dest_posts = get_posts( [
-                    'post_type'      => 'package',
-                    'post_status'    => 'publish',
-                    'posts_per_page' => -1,
-                    'fields'         => 'ids',
-                ] );
-                $all_dests = [];
-                foreach ( $dest_posts as $pid ) {
-                    $raw = get_post_meta( $pid, '_package_destinations', true );
-                    if ( $raw ) {
-                        foreach ( array_map( 'trim', explode( ',', $raw ) ) as $d ) {
-                            if ( $d ) {
-                                $all_dests[ $d ] = $d;
-                            }
-                        }
+        <!-- ROW 2: Filter dropdowns (CSS grid) -->
+        <div class="filter-bar__row filter-bar__row--filters">
+
+            <!-- Package Type -->
+            <div class="filter-select-wrap">
+                <select id="filter-type" name="type" class="filter-select" aria-label="<?php esc_attr_e( 'Filter by package type', 'travzo' ); ?>">
+                    <option value=""><?php esc_html_e( 'All Types', 'travzo' ); ?></option>
+                    <?php
+                    $types = [
+                        'Group Tour'          => 'Group Tours',
+                        'Honeymoon'           => 'Honeymoon',
+                        'Solo Trip'           => 'Solo Trips',
+                        'Devotional'          => 'Devotional',
+                        'Destination Wedding' => 'Destination Wedding',
+                        'International'       => 'International',
+                    ];
+                    foreach ( $types as $val => $label ) {
+                        printf( '<option value="%s" %s>%s</option>', esc_attr( $val ), selected( $f_type, $val, false ), esc_html( $label ) );
                     }
-                }
-                ksort( $all_dests );
-                foreach ( $all_dests as $dest ) {
-                    printf(
-                        '<option value="%s" %s>%s</option>',
-                        esc_attr( $dest ),
-                        selected( $f_destination, $dest, false ),
-                        esc_html( $dest )
-                    );
-                }
-                ?>
-            </select>
-            <svg class="filter-select-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-        </div>
+                    ?>
+                </select>
+                <svg class="filter-select-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
 
-        <!-- Package Type -->
-        <div class="filter-select-wrap">
-            <select id="filter-type" name="type" class="filter-select" aria-label="<?php esc_attr_e( 'Filter by package type', 'travzo' ); ?>">
-                <option value=""><?php esc_html_e( 'All Types', 'travzo' ); ?></option>
+            <!-- Region -->
+            <div class="filter-select-wrap">
+                <select id="filter-region" name="region" class="filter-select" aria-label="<?php esc_attr_e( 'Filter by region', 'travzo' ); ?>">
+                    <option value=""><?php esc_html_e( 'All Regions', 'travzo' ); ?></option>
+                    <option value="domestic"<?php selected( $f_region, 'domestic' ); ?>><?php esc_html_e( 'Domestic (India)', 'travzo' ); ?></option>
+                    <option value="international"<?php selected( $f_region, 'international' ); ?>><?php esc_html_e( 'International', 'travzo' ); ?></option>
+                </select>
+                <svg class="filter-select-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+
+            <!-- Country (searchable) -->
+            <div class="filter-searchable" data-name="country" data-placeholder="<?php esc_attr_e( 'All Countries', 'travzo' ); ?>" data-selected="<?php echo esc_attr( $f_country ); ?>">
+                <input type="hidden" name="country" value="<?php echo esc_attr( $f_country ); ?>">
                 <?php
-                $types = [
-                    'Group Tour'          => 'Group Tours',
-                    'Honeymoon'           => 'Honeymoon',
-                    'Solo Trip'           => 'Solo Trips',
-                    'Devotional'          => 'Devotional',
-                    'Destination Wedding' => 'Destination Wedding',
-                    'International'       => 'International',
-                ];
-                foreach ( $types as $val => $label ) {
-                    printf(
-                        '<option value="%s" %s>%s</option>',
-                        esc_attr( $val ),
-                        selected( $f_type, $val, false ),
-                        esc_html( $label )
-                    );
-                }
+                $country_options = [ '' => 'All Countries' ];
+                foreach ( $all_countries as $c ) { $country_options[ $c ] = $c; }
                 ?>
-            </select>
-            <svg class="filter-select-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-        </div>
+                <script type="application/json" class="filter-searchable-data"><?php echo wp_json_encode( $country_options ); ?></script>
+            </div>
 
-        <!-- Duration -->
-        <div class="filter-select-wrap">
-            <select id="filter-duration" name="duration" class="filter-select" aria-label="<?php esc_attr_e( 'Filter by duration', 'travzo' ); ?>">
-                <option value=""><?php esc_html_e( 'Any Duration', 'travzo' ); ?></option>
+            <!-- Sub-region -->
+            <div class="filter-select-wrap">
+                <select id="filter-subregion" name="subregion" class="filter-select" aria-label="<?php esc_attr_e( 'Filter by sub-region', 'travzo' ); ?>">
+                    <option value=""><?php esc_html_e( 'All Sub-regions', 'travzo' ); ?></option>
+                    <optgroup label="India">
+                        <?php foreach ( $india_subregions as $sr ) : ?>
+                            <option value="<?php echo esc_attr( $sr ); ?>"<?php selected( $f_subregion, $sr ); ?>><?php echo esc_html( $sr ); ?></option>
+                        <?php endforeach; ?>
+                    </optgroup>
+                    <optgroup label="International">
+                        <?php foreach ( $intl_subregions as $sr ) : ?>
+                            <option value="<?php echo esc_attr( $sr ); ?>"<?php selected( $f_subregion, $sr ); ?>><?php echo esc_html( $sr ); ?></option>
+                        <?php endforeach; ?>
+                    </optgroup>
+                </select>
+                <svg class="filter-select-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+
+            <!-- Destination (searchable) -->
+            <div class="filter-searchable" data-name="destination" data-placeholder="<?php esc_attr_e( 'All Destinations', 'travzo' ); ?>" data-selected="<?php echo esc_attr( $f_destination ); ?>">
+                <input type="hidden" name="destination" value="<?php echo esc_attr( $f_destination ); ?>">
                 <?php
-                $durations = [
-                    '3-5'  => '3–5 Days',
-                    '6-8'  => '6–8 Days',
-                    '9-12' => '9–12 Days',
-                    '13+'  => '13+ Days',
-                ];
-                foreach ( $durations as $val => $label ) {
-                    printf(
-                        '<option value="%s" %s>%s</option>',
-                        esc_attr( $val ),
-                        selected( $f_duration, $val, false ),
-                        esc_html( $label )
-                    );
-                }
+                $dest_options = [ '' => 'All Destinations' ];
+                foreach ( $all_dests as $d ) { $dest_options[ $d ] = $d; }
                 ?>
-            </select>
-            <svg class="filter-select-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                <script type="application/json" class="filter-searchable-data"><?php echo wp_json_encode( $dest_options ); ?></script>
+            </div>
+
+            <!-- Duration -->
+            <div class="filter-select-wrap">
+                <select id="filter-duration" name="duration" class="filter-select" aria-label="<?php esc_attr_e( 'Filter by duration', 'travzo' ); ?>">
+                    <option value=""><?php esc_html_e( 'Any Duration', 'travzo' ); ?></option>
+                    <?php
+                    foreach ( $durations as $val => $label ) {
+                        printf( '<option value="%s" %s>%s</option>', esc_attr( $val ), selected( $f_duration, $val, false ), esc_html( $label ) );
+                    }
+                    ?>
+                </select>
+                <svg class="filter-select-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+
+            <!-- Budget -->
+            <div class="filter-select-wrap">
+                <select id="filter-budget" name="budget" class="filter-select" aria-label="<?php esc_attr_e( 'Filter by budget', 'travzo' ); ?>">
+                    <option value=""><?php esc_html_e( 'Any Budget', 'travzo' ); ?></option>
+                    <?php
+                    foreach ( $budgets as $val => $label ) {
+                        printf( '<option value="%s" %s>%s</option>', esc_attr( $val ), selected( $f_budget, $val, false ), esc_html( $label ) );
+                    }
+                    ?>
+                </select>
+                <svg class="filter-select-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+
+            <!-- Hidden submit for no-JS fallback -->
+            <button type="submit" class="filter-bar__submit-btn" aria-label="<?php esc_attr_e( 'Apply filters', 'travzo' ); ?>">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </button>
         </div>
 
-        <!-- Budget -->
-        <div class="filter-select-wrap">
-            <select id="filter-budget" name="budget" class="filter-select" aria-label="<?php esc_attr_e( 'Filter by budget', 'travzo' ); ?>">
-                <option value=""><?php esc_html_e( 'Any Budget', 'travzo' ); ?></option>
-                <?php
-                $budgets = [
-                    'under-15000'  => 'Under ₹15,000',
-                    '15000-30000'  => '₹15,000 – ₹30,000',
-                    '30000-60000'  => '₹30,000 – ₹60,000',
-                    'above-60000'  => '₹60,000+',
-                ];
-                foreach ( $budgets as $val => $label ) {
-                    printf(
-                        '<option value="%s" %s>%s</option>',
-                        esc_attr( $val ),
-                        selected( $f_budget, $val, false ),
-                        esc_html( $label )
-                    );
-                }
-                ?>
-            </select>
-            <svg class="filter-select-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+        <!-- ROW 3: Active filter chips -->
+        <?php if ( $has_active_filters ) : ?>
+        <div class="filter-bar__row filter-bar__row--chips" id="filter-chips">
+            <?php
+            $chip_data = [
+                'sq'          => $f_sq          ? 'Search: ' . $f_sq         : '',
+                'type'        => $f_type        ? $f_type                    : '',
+                'region'      => $f_region      ? ucfirst( $f_region )       : '',
+                'country'     => $f_country     ? $f_country                 : '',
+                'subregion'   => $f_subregion   ? $f_subregion               : '',
+                'destination' => $f_destination ? $f_destination             : '',
+                'duration'    => $f_duration    ? ( $durations[ $f_duration ] ?? $f_duration ) : '',
+                'budget'      => $f_budget      ? ( $budgets[ $f_budget ] ?? $f_budget )       : '',
+            ];
+            foreach ( $chip_data as $param => $label ) :
+                if ( ! $label ) continue;
+                $remove_params = $_GET;
+                unset( $remove_params[ $param ] );
+                unset( $remove_params['paged'] );
+                $remove_url = add_query_arg( $remove_params, get_post_type_archive_link( 'package' ) );
+            ?>
+                <a href="<?php echo esc_url( $remove_url ); ?>" class="filter-chip" aria-label="<?php printf( esc_attr__( 'Remove filter: %s', 'travzo' ), $label ); ?>">
+                    <?php echo esc_html( $label ); ?>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </a>
+            <?php endforeach; ?>
+            <a href="<?php echo esc_url( get_post_type_archive_link( 'package' ) ); ?>" class="filter-chip filter-chip--clear-all">
+                <?php esc_html_e( 'Clear All', 'travzo' ); ?>
+            </a>
         </div>
-
-        <!-- Spacer -->
-        <div class="filter-bar__spacer"></div>
-
-        <!-- Sort -->
-        <div class="filter-select-wrap filter-select-wrap--sort">
-            <select id="filter-sort" name="sort" class="filter-select" aria-label="<?php esc_attr_e( 'Sort packages', 'travzo' ); ?>">
-                <?php
-                $sorts = [
-                    'latest'       => 'Sort By: Latest',
-                    'price-asc'    => 'Price: Low to High',
-                    'price-desc'   => 'Price: High to Low',
-                    'duration-asc' => 'Duration: Short to Long',
-                ];
-                foreach ( $sorts as $val => $label ) {
-                    printf(
-                        '<option value="%s" %s>%s</option>',
-                        esc_attr( $val ),
-                        selected( $f_sort, $val, false ),
-                        esc_html( $label )
-                    );
-                }
-                ?>
-            </select>
-            <svg class="filter-select-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-        </div>
-
-        <!-- Hidden submit for no-JS fallback -->
-        <button type="submit" class="filter-bar__submit-btn" aria-label="<?php esc_attr_e( 'Apply filters', 'travzo' ); ?>">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        </button>
+        <?php endif; ?>
 
     </form>
 </div><!-- /.filter-bar -->
@@ -320,7 +436,7 @@ $_pkg_hero_style = $_pkg_hero_img ? 'background-image:url(' . esc_url( $_pkg_her
 <section class="packages-grid-section">
     <div class="packages-grid-inner">
 
-        <!-- Result count -->
+        <!-- Result count + Sort -->
         <div class="packages-result-bar">
             <p class="packages-result-count">
                 <?php
@@ -331,12 +447,24 @@ $_pkg_hero_style = $_pkg_hero_img ? 'background-image:url(' . esc_url( $_pkg_her
                 );
                 ?>
             </p>
-            <?php if ( $f_destination || $f_type || $f_duration || $f_budget ) : ?>
-                <a href="<?php echo esc_url( get_post_type_archive_link( 'package' ) ); ?>" class="filter-clear-btn">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                    <?php esc_html_e( 'Clear Filters', 'travzo' ); ?>
-                </a>
-            <?php endif; ?>
+            <div class="packages-result-bar__right">
+                <?php if ( $has_active_filters ) : ?>
+                    <a href="<?php echo esc_url( get_post_type_archive_link( 'package' ) ); ?>" class="filter-clear-btn">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        <?php esc_html_e( 'Clear Filters', 'travzo' ); ?>
+                    </a>
+                <?php endif; ?>
+                <div class="filter-select-wrap filter-select-wrap--sort">
+                    <select id="filter-sort" name="sort" form="filter-form" class="filter-select" aria-label="<?php esc_attr_e( 'Sort packages', 'travzo' ); ?>">
+                        <?php
+                        foreach ( $sorts as $val => $label ) {
+                            printf( '<option value="%s" %s>%s</option>', esc_attr( $val ), selected( $f_sort, $val, false ), esc_html( $label ) );
+                        }
+                        ?>
+                    </select>
+                    <svg class="filter-select-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+            </div>
         </div>
 
         <?php if ( $packages->have_posts() ) : ?>
@@ -400,11 +528,13 @@ $_pkg_hero_style = $_pkg_hero_img ? 'background-image:url(' . esc_url( $_pkg_her
                         </div>
 
                         <!-- Price -->
-                        <?php if ( $price ) : ?>
+                        <?php if ( $price ) :
+                            $price_display = is_numeric( $price ) ? '₹' . number_format( (int) $price ) : $price;
+                        ?>
                         <div class="package-card__price">
                             <span class="package-card__price-from"><?php esc_html_e( 'Starting from', 'travzo' ); ?></span>
                             <span class="package-card__price-amount">
-                                <?php echo esc_html( $price ); ?>
+                                <?php echo esc_html( $price_display ); ?>
                             </span>
                         </div>
                         <?php endif; ?>

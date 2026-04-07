@@ -34,27 +34,31 @@ $sidebar_phone_url = $sidebar_phone
     <section class="post-hero<?php echo $thumb ? '' : ' post-hero--default'; ?>"
         <?php if ( $thumb ) : ?>style="background-image:url(<?php echo esc_url( $thumb ); ?>);"<?php endif; ?>>
         <div class="post-hero-overlay"></div>
-        <div class="post-hero-content">
-            <nav class="page-hero__breadcrumb post-hero__breadcrumb" aria-label="Breadcrumb">
-                <a href="<?php echo esc_url( home_url( '/' ) ); ?>">Home</a>
-                <span aria-hidden="true"> / </span>
-                <a href="<?php echo esc_url( home_url( '/blog' ) ); ?>">Blog</a>
-                <span aria-hidden="true"> / </span>
-                <span><?php echo esc_html( $cat_name ); ?></span>
-            </nav>
-            <span class="blog-category-tag post-hero-cat"><?php echo esc_html( $cat_name ); ?></span>
-            <h1 class="post-title"><?php the_title(); ?></h1>
-            <div class="post-hero-meta">
-                <div class="post-author">
-                    <?php echo get_avatar( get_the_author_meta( 'email' ), 40, '', '', [ 'class' => 'author-avatar author-avatar--lg' ] ); ?>
-                    <div>
-                        <span class="author-name"><?php the_author(); ?></span>
-                        <span class="post-date-small"><?php echo get_the_date( 'M j, Y' ); ?></span>
+        <div class="section-inner">
+            <div class="post-hero-grid">
+                <div class="post-hero-content">
+                    <nav class="page-hero__breadcrumb post-hero__breadcrumb" aria-label="Breadcrumb">
+                        <a href="<?php echo esc_url( home_url( '/' ) ); ?>">Home</a>
+                        <span aria-hidden="true"> / </span>
+                        <a href="<?php echo esc_url( home_url( '/blog' ) ); ?>">Blog</a>
+                        <span aria-hidden="true"> / </span>
+                        <span><?php echo esc_html( $cat_name ); ?></span>
+                    </nav>
+                    <span class="blog-category-tag post-hero-cat"><?php echo esc_html( $cat_name ); ?></span>
+                    <h1 class="post-title"><?php the_title(); ?></h1>
+                    <div class="post-hero-meta">
+                        <div class="post-author">
+                            <?php echo get_avatar( get_the_author_meta( 'email' ), 40, '', '', [ 'class' => 'author-avatar author-avatar--lg' ] ); ?>
+                            <div>
+                                <span class="author-name"><?php the_author(); ?></span>
+                                <span class="post-date-small"><?php echo get_the_date( 'M j, Y' ); ?></span>
+                            </div>
+                        </div>
+                        <div class="post-read-time">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            <?php echo $read_time; ?> min read
+                        </div>
                     </div>
-                </div>
-                <div class="post-read-time">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    <?php echo $read_time; ?> min read
                 </div>
             </div>
         </div>

@@ -7,6 +7,7 @@
 
 $paged      = get_query_var( 'paged' ) ?: 1;
 $filter_cat = isset( $_GET['category'] ) ? sanitize_text_field( wp_unslash( $_GET['category'] ) ) : '';
+$search_q   = isset( $_GET['sq'] ) ? sanitize_text_field( wp_unslash( $_GET['sq'] ) ) : '';
 $categories = get_categories( [ 'hide_empty' => true ] );
 
 get_header(); ?>
@@ -33,7 +34,21 @@ get_header(); ?>
         </div>
     </section>
 
-    <!-- ══ 2. CATEGORY FILTER ═══════════════════════════════════════════════ -->
+    <!-- ══ 2. SEARCH BAR ═══════════════════════════════════════════════════ -->
+    <div class="blog-search-bar">
+        <div class="section-inner">
+            <form class="blog-search-form" method="GET" action="<?php echo esc_url( home_url( '/blog' ) ); ?>">
+                <div class="blog-search-input-wrap">
+                    <svg class="blog-search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                    <input type="search" name="sq" value="<?php echo esc_attr( $search_q ); ?>"
+                           placeholder="<?php esc_attr_e( 'Search articles...', 'travzo' ); ?>"
+                           class="blog-search-input" aria-label="<?php esc_attr_e( 'Search articles', 'travzo' ); ?>">
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ══ 3. CATEGORY FILTER ═══════════════════════════════════════════════ -->
     <div class="blog-filter-bar">
         <div class="section-inner">
             <div class="blog-filter-tabs" role="list">
@@ -57,12 +72,11 @@ get_header(); ?>
         </div>
     </div>
 
-    <!-- ══ 3. FEATURED POST (page 1, no filter) ═════════════════════════════ -->
-    <?php if ( $paged === 1 && ! $filter_cat ) :
-        // Prefer post flagged as featured; fall back to latest
+    <!-- ══ 4. FEATURED POST(S) (page 1, no filter, no search) ════════════════ -->
+    <?php if ( $paged === 1 && ! $filter_cat && ! $search_q ) :
         $featured_query = new WP_Query( [
             'post_type'      => 'post',
-            'posts_per_page' => 1,
+            'posts_per_page' => 5,
             'post_status'    => 'publish',
             'meta_query'     => [ [ 'key' => '_is_featured_blog', 'value' => '1', 'compare' => '=' ] ],
         ] );
@@ -75,51 +89,80 @@ get_header(); ?>
                 'order'          => 'DESC',
             ] );
         }
+        $featured_count = $featured_query->post_count;
         if ( $featured_query->have_posts() ) :
-            $featured_query->the_post();
-            $featured_thumb = get_the_post_thumbnail_url( get_the_ID(), 'large' );
-            $featured_cats  = get_the_category();
-            $featured_cat   = $featured_cats ? $featured_cats[0]->name : 'Travel';
     ?>
     <section class="featured-post-section">
         <div class="section-inner">
-            <div class="featured-post-card">
-                <div class="featured-post-image">
-                    <?php if ( $featured_thumb ) : ?>
-                    <img src="<?php echo esc_url( $featured_thumb ); ?>"
-                         alt="<?php the_title_attribute(); ?>">
-                    <?php else : ?>
-                    <div class="featured-post-image-placeholder" aria-hidden="true"></div>
-                    <?php endif; ?>
-                    <span class="blog-category-tag"><?php echo esc_html( $featured_cat ); ?></span>
-                </div>
-                <div class="featured-post-content">
-                    <span class="section-label">Featured Post</span>
-                    <h2 class="featured-post-title">
-                        <a href="<?php the_permalink(); ?>"><?php the_title(); ?></a>
-                    </h2>
-                    <p class="featured-post-excerpt">
-                        <?php echo wp_trim_words( get_the_excerpt(), 30, '&hellip;' ); ?>
-                    </p>
-                    <div class="featured-post-meta">
-                        <div class="post-author">
-                            <?php echo get_avatar( get_the_author_meta( 'email' ), 32, '', '', [ 'class' => 'author-avatar' ] ); ?>
-                            <span><?php the_author(); ?></span>
+            <div class="featured-carousel<?php echo $featured_count > 1 ? ' featured-carousel--multi' : ''; ?>"
+                 <?php if ( $featured_count > 1 ) : ?>data-count="<?php echo $featured_count; ?>"<?php endif; ?>>
+
+                <div class="featured-carousel__track">
+                    <?php $slide_idx = 0; while ( $featured_query->have_posts() ) : $featured_query->the_post();
+                        $featured_thumb = get_the_post_thumbnail_url( get_the_ID(), 'large' );
+                        $featured_cats  = get_the_category();
+                        $featured_cat   = $featured_cats ? $featured_cats[0]->name : 'Travel';
+                    ?>
+                    <div class="featured-carousel__slide<?php echo $slide_idx === 0 ? ' active' : ''; ?>"
+                         data-slide="<?php echo $slide_idx; ?>"
+                         <?php echo $slide_idx !== 0 ? 'aria-hidden="true"' : ''; ?>>
+                        <div class="featured-post-card">
+                            <div class="featured-post-image">
+                                <?php if ( $featured_thumb ) : ?>
+                                    <img src="<?php echo esc_url( $featured_thumb ); ?>" alt="<?php the_title_attribute(); ?>">
+                                <?php else : ?>
+                                    <div class="featured-post-image-placeholder" aria-hidden="true"></div>
+                                <?php endif; ?>
+                                <span class="blog-category-tag"><?php echo esc_html( $featured_cat ); ?></span>
+                            </div>
+                            <div class="featured-post-content">
+                                <span class="section-label"><?php esc_html_e( 'FEATURED POST', 'travzo' ); ?></span>
+                                <h2 class="featured-post-title">
+                                    <a href="<?php the_permalink(); ?>"><?php the_title(); ?></a>
+                                </h2>
+                                <p class="featured-post-excerpt">
+                                    <?php echo wp_trim_words( get_the_excerpt(), 30, '&hellip;' ); ?>
+                                </p>
+                                <div class="featured-post-meta">
+                                    <div class="post-author">
+                                        <?php echo get_avatar( get_the_author_meta( 'email' ), 32, '', '', [ 'class' => 'author-avatar' ] ); ?>
+                                        <span><?php the_author(); ?></span>
+                                    </div>
+                                    <span class="post-date">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                        <?php echo get_the_date( 'M j, Y' ); ?>
+                                    </span>
+                                </div>
+                                <a href="<?php the_permalink(); ?>" class="btn btn--gold featured-post-btn" style="margin-top:24px">
+                                    <?php esc_html_e( 'Read Article', 'travzo' ); ?>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                                </a>
+                            </div>
                         </div>
-                        <span class="post-date">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                            <?php echo get_the_date( 'M j, Y' ); ?>
-                        </span>
                     </div>
-                    <a href="<?php the_permalink(); ?>" class="btn btn--gold featured-post-btn">
-                        Read Article
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-                    </a>
+                    <?php $slide_idx++; endwhile; wp_reset_postdata(); ?>
                 </div>
+
+                <?php if ( $featured_count > 1 ) : ?>
+                <button class="featured-carousel__arrow featured-carousel__arrow--prev" aria-label="<?php esc_attr_e( 'Previous featured post', 'travzo' ); ?>">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <button class="featured-carousel__arrow featured-carousel__arrow--next" aria-label="<?php esc_attr_e( 'Next featured post', 'travzo' ); ?>">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+                <div class="featured-carousel__dots">
+                    <?php for ( $d = 0; $d < $featured_count; $d++ ) : ?>
+                    <button class="featured-carousel__dot<?php echo $d === 0 ? ' active' : ''; ?>"
+                            data-slide="<?php echo $d; ?>"
+                            aria-label="<?php echo esc_attr( sprintf( __( 'Go to featured post %d', 'travzo' ), $d + 1 ) ); ?>"></button>
+                    <?php endfor; ?>
+                </div>
+                <?php endif; ?>
+
             </div>
         </div>
     </section>
-    <?php wp_reset_postdata();
+    <?php
         endif;
     endif; ?>
 
@@ -140,14 +183,24 @@ get_header(); ?>
             if ( $filter_cat ) {
                 $blog_args['category_name'] = $filter_cat;
             }
+            if ( $search_q ) {
+                $blog_args['s'] = $search_q;
+            }
 
-            // Skip the featured post on page 1 with no filter
-            if ( $paged === 1 && ! $filter_cat ) {
+            // Skip the featured post on page 1 with no filter and no search
+            if ( $paged === 1 && ! $filter_cat && ! $search_q ) {
                 $blog_args['offset'] = 1;
             }
 
             $blog_query = new WP_Query( $blog_args );
             ?>
+
+            <?php if ( $search_q ) : ?>
+            <div class="blog-search-results-heading">
+                <p><?php printf( esc_html__( 'Showing results for: %s', 'travzo' ), '<strong>' . esc_html( $search_q ) . '</strong>' ); ?></p>
+                <a href="<?php echo esc_url( home_url( '/blog' ) ); ?>" class="blog-search-clear"><?php esc_html_e( 'Clear search', 'travzo' ); ?></a>
+            </div>
+            <?php endif; ?>
 
             <?php if ( $blog_query->have_posts() ) : ?>
 
@@ -190,15 +243,16 @@ get_header(); ?>
                 <?php endwhile; wp_reset_postdata(); ?>
             </div><!-- /.blog-list-grid -->
 
-            <div class="packages-pagination">
+            <nav class="blog-pagination" aria-label="<?php esc_attr_e( 'Blog pagination', 'travzo' ); ?>">
                 <?php echo paginate_links( [
                     'total'     => $blog_query->max_num_pages,
                     'current'   => $paged,
-                    'prev_text' => '&larr; Previous',
-                    'next_text' => 'Next &rarr;',
+                    'prev_text' => '&larr; ' . __( 'Previous', 'travzo' ),
+                    'next_text' => __( 'Next', 'travzo' ) . ' &rarr;',
+                    'mid_size'  => 2,
                     'type'      => 'list',
                 ] ); ?>
-            </div>
+            </nav>
 
             <?php else : ?>
 
@@ -223,7 +277,20 @@ get_header(); ?>
             <h2 class="newsletter-heading"><?php echo esc_html( travzo_get( 'travzo_newsletter_heading', 'Get Travel Stories in Your Inbox' ) ); ?></h2>
             <p class="newsletter-subtext"><?php echo esc_html( travzo_get( 'travzo_newsletter_subtext', 'Subscribe for travel tips, destination guides and exclusive offers.' ) ); ?></p>
             <?php
-            travzo_render_form( 'travzo_form_newsletter', '<form class="newsletter-form" method="POST" action=""><div class="newsletter-form__pill"><input type="email" name="newsletter_email" placeholder="Enter your email address" required aria-label="Email address"><button type="submit">Subscribe</button></div></form>' );
+            ?>
+            <form class="travzo-form newsletter-form" data-form-type="newsletter">
+                <?php wp_nonce_field( 'travzo_form_submit', 'travzo_form_nonce' ); ?>
+                <input type="hidden" name="action" value="travzo_form_submit">
+                <input type="hidden" name="form_type" value="newsletter">
+                <div class="newsletter-form__pill">
+                    <input type="email" name="email" placeholder="Enter your email address" required aria-label="Email address">
+                    <button type="submit" class="form-submit-btn">Subscribe</button>
+                </div>
+                <?php travzo_render_captcha(); ?>
+                <div class="form-success" style="display:none">You're subscribed!</div>
+                <div class="form-error" style="display:none">Something went wrong. Please try again.</div>
+            </form>
+            <?php
             ?>
         </div>
     </section>

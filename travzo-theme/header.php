@@ -101,221 +101,73 @@ $hdr_whatsapp_url = $hdr_whatsapp
             </div>
 
             <!-- Primary Navigation -->
+            <?php $nav_items = travzo_get_menu_items(); ?>
             <nav class="primary-nav" id="primary-navigation" aria-label="<?php esc_attr_e( 'Primary Navigation', 'travzo' ); ?>">
                 <ul class="nav-menu" role="menubar">
-
-                    <li class="nav-item" role="none">
-                        <a href="<?php echo esc_url( home_url( travzo_get( 'travzo_nav_home_url', '/' ) ) ); ?>" class="nav-link" role="menuitem"><?php echo esc_html( travzo_get( 'travzo_nav_home', 'Home' ) ); ?></a>
-                    </li>
-
-                    <!-- ── Group Tours Mega Menu ───────────────────── -->
-                    <li class="nav-item has-mega" role="none">
-                        <a href="<?php echo esc_url( home_url( '/packages' ) ); ?>" class="nav-link" role="menuitem" aria-haspopup="true" aria-expanded="false">
-                            <?php echo esc_html( travzo_get( 'travzo_nav_group', 'Group Tours' ) ); ?>
+                    <?php foreach ( $nav_items as $nav_item ) :
+                        if ( empty( $nav_item['visible'] ) ) continue;
+                        $item_url   = esc_url( home_url( $nav_item['url'] ) );
+                        $item_label = esc_html( $nav_item['label'] );
+                        $has_mega   = ! empty( $nav_item['has_mega'] );
+                        $mega       = $nav_item['mega'] ?? [];
+                        $show_auto  = $has_mega && ! empty( $mega['auto_fetch'] );
+                        $show_custom = $has_mega && ! empty( $mega['custom_links'] ) && ! empty( $mega['links'] );
+                        $col_count  = ( $show_auto ? 1 : 0 ) + ( $show_custom ? 1 : 0 );
+                    ?>
+                    <li class="nav-item<?php echo $has_mega ? ' has-mega' : ''; ?>" role="none">
+                        <a href="<?php echo $item_url; ?>" class="nav-link" role="menuitem"<?php if ( $has_mega ) : ?> aria-haspopup="true" aria-expanded="false"<?php endif; ?>>
+                            <?php echo $item_label; ?>
+                            <?php if ( $has_mega ) : ?>
                             <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                            <?php endif; ?>
                         </a>
-                        <div class="mega-panel mega-panel--4col" role="region" aria-label="Group Tours destinations">
+                        <?php if ( $has_mega && $col_count > 0 ) : ?>
+                        <div class="mega-panel mega-panel--<?php echo $col_count; ?>col" role="region" aria-label="<?php echo $item_label; ?> menu">
                             <div class="mega-panel__inner">
+                                <?php if ( $show_auto ) :
+                                    $packages = travzo_fetch_menu_packages( $mega );
+                                ?>
                                 <div class="mega-col">
-                                    <h4 class="mega-col__heading"><?php echo esc_html( travzo_get( 'travzo_mega_group_col1_heading', 'Group Tours' ) ); ?></h4>
+                                    <?php if ( ! empty( $mega['auto_label'] ) ) : ?>
+                                    <h4 class="mega-col__heading"><?php echo esc_html( $mega['auto_label'] ); ?></h4>
+                                    <?php endif; ?>
                                     <ul>
-                                        <?php
-                                        $mega_group = new WP_Query( [
-                                            'post_type'      => 'package',
-                                            'posts_per_page' => 6,
-                                            'post_status'    => 'publish',
-                                            'meta_query'     => [ [ 'key' => '_package_type', 'value' => 'Group Tour', 'compare' => '=' ] ],
-                                        ] );
-                                        if ( $mega_group->have_posts() ) :
-                                            while ( $mega_group->have_posts() ) : $mega_group->the_post(); ?>
-                                        <li><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></li>
-                                        <?php endwhile; wp_reset_postdata();
-                                        else : ?>
-                                        <li><a href="#">Kerala Group Tour</a></li>
-                                        <li><a href="#">Kashmir Group Tour</a></li>
-                                        <li><a href="#">Rajasthan Group Tour</a></li>
-                                        <li><a href="#">Northeast India Tour</a></li>
-                                        <li><a href="#">Andaman Islands Tour</a></li>
-                                        <li><a href="#">Thailand Group Tour</a></li>
+                                        <?php if ( ! empty( $packages ) ) :
+                                            foreach ( $packages as $pkg ) : ?>
+                                        <li><a href="<?php echo esc_url( $pkg['url'] ); ?>"><?php echo esc_html( $pkg['title'] ); ?></a></li>
+                                        <?php endforeach;
+                                        endif; ?>
+                                        <?php if ( ! empty( $mega['auto_viewmore'] ) && ! empty( $mega['auto_viewmore_label'] ) ) :
+                                            $vm_url = ! empty( $mega['auto_viewmore_url'] ) ? home_url( $mega['auto_viewmore_url'] ) : travzo_mega_viewmore_url( $mega );
+                                        ?>
+                                        <li class="mega-viewmore"><a href="<?php echo esc_url( $vm_url ); ?>"><?php echo esc_html( $mega['auto_viewmore_label'] ); ?></a></li>
                                         <?php endif; ?>
-                                        <li class="mega-viewmore"><a href="<?php echo esc_url( travzo_get( 'travzo_menu_group_all', home_url( '/packages?type=Group+Tour' ) ) ); ?>">View More &rarr;</a></li>
                                     </ul>
                                 </div>
-                                <?php travzo_render_mega_col( 'travzo_mega_group_col2_heading', 'travzo_mega_group_col2_items' ); ?>
-                                <?php travzo_render_mega_col( 'travzo_mega_group_col3_heading', 'travzo_mega_group_col3_items' ); ?>
-                                <?php travzo_render_mega_col( 'travzo_mega_group_col4_heading', 'travzo_mega_group_col4_items' ); ?>
-                            </div>
-                        </div>
-                    </li>
+                                <?php endif; ?>
 
-                    <!-- ── Honeymoon Mega Menu ────────────────────── -->
-                    <li class="nav-item has-mega" role="none">
-                        <a href="<?php echo esc_url( home_url( '/packages/?category=honeymoon' ) ); ?>" class="nav-link" role="menuitem" aria-haspopup="true" aria-expanded="false">
-                            <?php echo esc_html( travzo_get( 'travzo_nav_honeymoon', 'Honeymoon' ) ); ?>
-                            <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-                        </a>
-                        <div class="mega-panel mega-panel--4col" role="region" aria-label="Honeymoon destinations">
-                            <div class="mega-panel__inner">
+                                <?php if ( $show_custom ) : ?>
                                 <div class="mega-col">
-                                    <h4 class="mega-col__heading"><?php echo esc_html( travzo_get( 'travzo_mega_honey_col1_heading', 'Honeymoon Packages' ) ); ?></h4>
+                                    <?php if ( ! empty( $mega['custom_label'] ) ) : ?>
+                                    <h4 class="mega-col__heading"><?php echo esc_html( $mega['custom_label'] ); ?></h4>
+                                    <?php endif; ?>
                                     <ul>
-                                        <?php
-                                        $mega_honey = new WP_Query( [
-                                            'post_type'      => 'package',
-                                            'posts_per_page' => 6,
-                                            'post_status'    => 'publish',
-                                            'meta_query'     => [ [ 'key' => '_package_type', 'value' => 'Honeymoon', 'compare' => '=' ] ],
-                                        ] );
-                                        if ( $mega_honey->have_posts() ) :
-                                            while ( $mega_honey->have_posts() ) : $mega_honey->the_post(); ?>
-                                        <li><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></li>
-                                        <?php endwhile; wp_reset_postdata();
-                                        else : ?>
-                                        <li><a href="#">Maldives Honeymoon</a></li>
-                                        <li><a href="#">Kerala Backwaters</a></li>
-                                        <li><a href="#">Kashmir Honeymoon</a></li>
-                                        <li><a href="#">Bali Honeymoon</a></li>
-                                        <li><a href="#">Andaman Honeymoon</a></li>
-                                        <li><a href="#">Coorg Honeymoon</a></li>
+                                        <?php foreach ( $mega['links'] as $lnk ) :
+                                            $lnk_url = ! empty( $lnk['url'] ) ? home_url( $lnk['url'] ) : '#';
+                                        ?>
+                                        <li><a href="<?php echo esc_url( $lnk_url ); ?>"><?php echo esc_html( $lnk['text'] ); ?></a></li>
+                                        <?php endforeach; ?>
+                                        <?php if ( ! empty( $mega['custom_viewmore'] ) && ! empty( $mega['custom_viewmore_label'] ) ) : ?>
+                                        <li class="mega-viewmore"><a href="<?php echo esc_url( ! empty( $mega['custom_viewmore_url'] ) ? home_url( $mega['custom_viewmore_url'] ) : '#' ); ?>"><?php echo esc_html( $mega['custom_viewmore_label'] ); ?></a></li>
                                         <?php endif; ?>
-                                        <li class="mega-viewmore"><a href="<?php echo esc_url( travzo_get( 'travzo_menu_honeymoon_all', home_url( '/packages?type=Honeymoon' ) ) ); ?>">View More &rarr;</a></li>
                                     </ul>
                                 </div>
-                                <?php travzo_render_mega_col( 'travzo_mega_honeymoon_col2_heading', 'travzo_mega_honeymoon_col2_items' ); ?>
-                                <?php travzo_render_mega_col( 'travzo_mega_honeymoon_col3_heading', 'travzo_mega_honeymoon_col3_items' ); ?>
-                                <?php travzo_render_mega_col( 'travzo_mega_honeymoon_col4_heading', 'travzo_mega_honeymoon_col4_items', travzo_get( 'travzo_menu_honeymoon_all', home_url( '/packages?type=Honeymoon' ) ), 'View All Honeymoon →' ); ?>
+                                <?php endif; ?>
                             </div>
                         </div>
+                        <?php endif; ?>
                     </li>
-
-                    <!-- ── Devotional Mega Menu ───────────────────── -->
-                    <li class="nav-item has-mega" role="none">
-                        <a href="<?php echo esc_url( home_url( '/packages/?category=devotional' ) ); ?>" class="nav-link" role="menuitem" aria-haspopup="true" aria-expanded="false">
-                            <?php echo esc_html( travzo_get( 'travzo_nav_devotional', 'Devotional' ) ); ?>
-                            <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-                        </a>
-                        <div class="mega-panel mega-panel--3col" role="region" aria-label="Devotional tour destinations">
-                            <div class="mega-panel__inner">
-                                <div class="mega-col">
-                                    <h4 class="mega-col__heading"><?php echo esc_html( travzo_get( 'travzo_mega_devot_col1_heading', 'Devotional Tours' ) ); ?></h4>
-                                    <ul>
-                                        <?php
-                                        $mega_devot = new WP_Query( [
-                                            'post_type'      => 'package',
-                                            'posts_per_page' => 6,
-                                            'post_status'    => 'publish',
-                                            'meta_query'     => [ [ 'key' => '_package_type', 'value' => 'Devotional', 'compare' => '=' ] ],
-                                        ] );
-                                        if ( $mega_devot->have_posts() ) :
-                                            while ( $mega_devot->have_posts() ) : $mega_devot->the_post(); ?>
-                                        <li><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></li>
-                                        <?php endwhile; wp_reset_postdata();
-                                        else : ?>
-                                        <li><a href="#">Char Dham Yatra</a></li>
-                                        <li><a href="#">Tirupati Tour</a></li>
-                                        <li><a href="#">Vaishno Devi</a></li>
-                                        <li><a href="#">Rameswaram</a></li>
-                                        <li><a href="#">Shirdi Tour</a></li>
-                                        <li><a href="#">Murugan Temples Circuit</a></li>
-                                        <?php endif; ?>
-                                        <li class="mega-viewmore"><a href="<?php echo esc_url( travzo_get( 'travzo_menu_devotional_all', home_url( '/packages?type=Devotional' ) ) ); ?>">View More &rarr;</a></li>
-                                    </ul>
-                                </div>
-                                <?php travzo_render_mega_col( 'travzo_mega_devotional_col2_heading', 'travzo_mega_devotional_col2_items' ); ?>
-                                <?php travzo_render_mega_col( 'travzo_mega_devotional_col3_heading', 'travzo_mega_devotional_col3_items', travzo_get( 'travzo_menu_devotional_all', home_url( '/packages?type=Devotional' ) ), 'View All Devotional →' ); ?>
-                            </div>
-                        </div>
-                    </li>
-
-                    <!-- ── Destination Wedding Mega Menu ─────────── -->
-                    <li class="nav-item has-mega" role="none">
-                        <a href="<?php echo esc_url( home_url( '/packages/?category=destination-wedding' ) ); ?>" class="nav-link" role="menuitem" aria-haspopup="true" aria-expanded="false">
-                            <?php echo esc_html( travzo_get( 'travzo_nav_wedding', 'Dest. Wedding' ) ); ?>
-                            <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-                        </a>
-                        <div class="mega-panel mega-panel--3col" role="region" aria-label="Destination wedding locations">
-                            <div class="mega-panel__inner">
-                                <div class="mega-col">
-                                    <h4 class="mega-col__heading"><?php echo esc_html( travzo_get( 'travzo_mega_wed_col1_heading', 'Destination Weddings' ) ); ?></h4>
-                                    <ul>
-                                        <?php
-                                        $mega_wed = new WP_Query( [
-                                            'post_type'      => 'package',
-                                            'posts_per_page' => 6,
-                                            'post_status'    => 'publish',
-                                            'meta_query'     => [ [ 'key' => '_package_type', 'value' => 'Destination Wedding', 'compare' => '=' ] ],
-                                        ] );
-                                        if ( $mega_wed->have_posts() ) :
-                                            while ( $mega_wed->have_posts() ) : $mega_wed->the_post(); ?>
-                                        <li><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></li>
-                                        <?php endwhile; wp_reset_postdata();
-                                        else : ?>
-                                        <li><a href="#">Udaipur Wedding</a></li>
-                                        <li><a href="#">Jaipur Wedding</a></li>
-                                        <li><a href="#">Goa Beach Wedding</a></li>
-                                        <li><a href="#">Kerala Wedding</a></li>
-                                        <li><a href="#">Ooty Wedding</a></li>
-                                        <li><a href="#">Maldives Wedding</a></li>
-                                        <?php endif; ?>
-                                        <li class="mega-viewmore"><a href="<?php echo esc_url( travzo_get( 'travzo_menu_wedding_all', home_url( '/packages?type=Destination+Wedding' ) ) ); ?>">View More &rarr;</a></li>
-                                    </ul>
-                                </div>
-                                <?php travzo_render_mega_col( 'travzo_mega_wedding_col2_heading', 'travzo_mega_wedding_col2_items' ); ?>
-                                <?php travzo_render_mega_col( 'travzo_mega_wedding_col3_heading', 'travzo_mega_wedding_col3_items', travzo_get( 'travzo_menu_wedding_all', home_url( '/packages?type=Destination+Wedding' ) ), 'View All Weddings →' ); ?>
-                            </div>
-                        </div>
-                    </li>
-
-                    <!-- ── Solo Trips Mega Menu ───────────────────── -->
-                    <li class="nav-item has-mega" role="none">
-                        <a href="<?php echo esc_url( home_url( '/packages/?category=solo-trips' ) ); ?>" class="nav-link" role="menuitem" aria-haspopup="true" aria-expanded="false">
-                            <?php echo esc_html( travzo_get( 'travzo_nav_solo', 'Solo Trips' ) ); ?>
-                            <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-                        </a>
-                        <div class="mega-panel mega-panel--3col" role="region" aria-label="Solo trip destinations">
-                            <div class="mega-panel__inner">
-                                <div class="mega-col">
-                                    <h4 class="mega-col__heading"><?php echo esc_html( travzo_get( 'travzo_mega_solo_col1_heading', 'Solo Trips' ) ); ?></h4>
-                                    <ul>
-                                        <?php
-                                        $mega_solo = new WP_Query( [
-                                            'post_type'      => 'package',
-                                            'posts_per_page' => 6,
-                                            'post_status'    => 'publish',
-                                            'meta_query'     => [ [ 'key' => '_package_type', 'value' => 'Solo Trip', 'compare' => '=' ] ],
-                                        ] );
-                                        if ( $mega_solo->have_posts() ) :
-                                            while ( $mega_solo->have_posts() ) : $mega_solo->the_post(); ?>
-                                        <li><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></li>
-                                        <?php endwhile; wp_reset_postdata();
-                                        else : ?>
-                                        <li><a href="#">Ladakh Solo Trip</a></li>
-                                        <li><a href="#">Spiti Valley</a></li>
-                                        <li><a href="#">Rishikesh</a></li>
-                                        <li><a href="#">Rajasthan Solo</a></li>
-                                        <li><a href="#">Andaman Solo</a></li>
-                                        <li><a href="#">Northeast India</a></li>
-                                        <?php endif; ?>
-                                        <li class="mega-viewmore"><a href="<?php echo esc_url( travzo_get( 'travzo_menu_solo_all', home_url( '/packages?type=Solo+Trip' ) ) ); ?>">View More &rarr;</a></li>
-                                    </ul>
-                                </div>
-                                <?php travzo_render_mega_col( 'travzo_mega_solo_col2_heading', 'travzo_mega_solo_col2_items', travzo_get( 'travzo_menu_solo_all', home_url( '/packages?type=Solo+Trip' ) ), 'View All Solo Trips →' ); ?>
-                            </div>
-                        </div>
-                    </li>
-
-                    <li class="nav-item" role="none">
-                        <a href="<?php echo esc_url( home_url( travzo_get( 'travzo_nav_blog_url', '/blog' ) ) ); ?>" class="nav-link" role="menuitem"><?php echo esc_html( travzo_get( 'travzo_nav_blog', 'Blog' ) ); ?></a>
-                    </li>
-
-                    <li class="nav-item" role="none">
-                        <a href="<?php echo esc_url( home_url( travzo_get( 'travzo_nav_about_url', '/about' ) ) ); ?>" class="nav-link" role="menuitem"><?php echo esc_html( travzo_get( 'travzo_nav_about', 'About' ) ); ?></a>
-                    </li>
-
-                    <li class="nav-item" role="none">
-                        <a href="<?php echo esc_url( home_url( travzo_get( 'travzo_nav_contact_url', '/contact' ) ) ); ?>" class="nav-link" role="menuitem"><?php echo esc_html( travzo_get( 'travzo_nav_contact', 'Contact' ) ); ?></a>
-                    </li>
-
+                    <?php endforeach; ?>
                 </ul>
             </nav>
 
@@ -368,163 +220,44 @@ $hdr_whatsapp_url = $hdr_whatsapp
 
         <nav class="mobile-drawer__nav" aria-label="<?php esc_attr_e( 'Mobile Navigation', 'travzo' ); ?>">
             <ul class="mobile-nav">
+                <?php foreach ( $nav_items as $mob_item ) :
+                    if ( empty( $mob_item['visible'] ) ) continue;
+                    $mob_url   = esc_url( home_url( $mob_item['url'] ) );
+                    $mob_label = esc_html( $mob_item['label'] );
+                    $mob_mega  = ! empty( $mob_item['has_mega'] );
+                    $mm        = $mob_item['mega'] ?? [];
+                    $mob_auto  = $mob_mega && ! empty( $mm['auto_fetch'] );
+                    $mob_cust  = $mob_mega && ! empty( $mm['custom_links'] ) && ! empty( $mm['links'] );
 
-                <li><a href="<?php echo esc_url( home_url( travzo_get( 'travzo_nav_home_url', '/' ) ) ); ?>"><?php echo esc_html( travzo_get( 'travzo_nav_home', 'Home' ) ); ?></a></li>
-
-                <!-- Group Tours -->
+                    if ( $mob_mega && ( $mob_auto || $mob_cust ) ) :
+                ?>
                 <li class="mobile-accordion">
                     <button class="mobile-accordion__trigger" aria-expanded="false">
-                        <?php echo esc_html( travzo_get( 'travzo_nav_group', 'Group Tours' ) ); ?>
+                        <?php echo $mob_label; ?>
                         <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
                     </button>
                     <ul class="mobile-accordion__panel">
-                        <?php
-                        $mob_group = new WP_Query( [
-                            'post_type'      => 'package',
-                            'posts_per_page' => 6,
-                            'post_status'    => 'publish',
-                            'meta_query'     => [ [ 'key' => '_package_type', 'value' => 'Group Tour', 'compare' => '=' ] ],
-                        ] );
-                        if ( $mob_group->have_posts() ) :
-                            while ( $mob_group->have_posts() ) : $mob_group->the_post(); ?>
-                        <li><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></li>
-                        <?php endwhile; wp_reset_postdata();
-                        else : ?>
-                        <li><a href="#">Kerala Group Tour</a></li>
-                        <li><a href="#">Kashmir Group Tour</a></li>
-                        <li><a href="#">Rajasthan Group Tour</a></li>
-                        <li><a href="#">Northeast India Tour</a></li>
-                        <li><a href="#">Andaman Islands Tour</a></li>
-                        <li><a href="#">Thailand Group Tour</a></li>
+                        <?php if ( $mob_auto ) :
+                            $mob_packages = travzo_fetch_menu_packages( $mm );
+                            foreach ( $mob_packages as $mp ) : ?>
+                        <li><a href="<?php echo esc_url( $mp['url'] ); ?>"><?php echo esc_html( $mp['title'] ); ?></a></li>
+                        <?php endforeach;
+                        endif; ?>
+                        <?php if ( $mob_cust ) :
+                            foreach ( $mm['links'] as $ml ) : ?>
+                        <li><a href="<?php echo esc_url( ! empty( $ml['url'] ) ? home_url( $ml['url'] ) : '#' ); ?>"><?php echo esc_html( $ml['text'] ); ?></a></li>
+                        <?php endforeach;
+                        endif; ?>
+                        <?php if ( $mob_auto && ! empty( $mm['auto_viewmore'] ) && ! empty( $mm['auto_viewmore_label'] ) ) :
+                            $mob_vm = ! empty( $mm['auto_viewmore_url'] ) ? home_url( $mm['auto_viewmore_url'] ) : travzo_mega_viewmore_url( $mm );
+                        ?>
+                        <li class="mega-viewmore"><a href="<?php echo esc_url( $mob_vm ); ?>"><?php echo esc_html( $mm['auto_viewmore_label'] ); ?></a></li>
                         <?php endif; ?>
-                        <li class="mega-viewmore"><a href="<?php echo esc_url( travzo_get( 'travzo_menu_group_all', home_url( '/packages?type=Group+Tour' ) ) ); ?>">View All &rarr;</a></li>
                     </ul>
                 </li>
-
-                <!-- Honeymoon -->
-                <li class="mobile-accordion">
-                    <button class="mobile-accordion__trigger" aria-expanded="false">
-                        <?php echo esc_html( travzo_get( 'travzo_nav_honeymoon', 'Honeymoon' ) ); ?>
-                        <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-                    </button>
-                    <ul class="mobile-accordion__panel">
-                        <?php
-                        $mob_honey = new WP_Query( [
-                            'post_type'      => 'package',
-                            'posts_per_page' => 6,
-                            'post_status'    => 'publish',
-                            'meta_query'     => [ [ 'key' => '_package_type', 'value' => 'Honeymoon', 'compare' => '=' ] ],
-                        ] );
-                        if ( $mob_honey->have_posts() ) :
-                            while ( $mob_honey->have_posts() ) : $mob_honey->the_post(); ?>
-                        <li><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></li>
-                        <?php endwhile; wp_reset_postdata();
-                        else : ?>
-                        <li><a href="#">Maldives Honeymoon</a></li>
-                        <li><a href="#">Kerala Backwaters</a></li>
-                        <li><a href="#">Kashmir Honeymoon</a></li>
-                        <li><a href="#">Bali Honeymoon</a></li>
-                        <li><a href="#">Andaman Honeymoon</a></li>
-                        <li><a href="#">Coorg Honeymoon</a></li>
-                        <?php endif; ?>
-                        <li class="mega-viewmore"><a href="<?php echo esc_url( travzo_get( 'travzo_menu_honeymoon_all', home_url( '/packages?type=Honeymoon' ) ) ); ?>">View All &rarr;</a></li>
-                    </ul>
-                </li>
-
-                <!-- Devotional -->
-                <li class="mobile-accordion">
-                    <button class="mobile-accordion__trigger" aria-expanded="false">
-                        <?php echo esc_html( travzo_get( 'travzo_nav_devotional', 'Devotional' ) ); ?>
-                        <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-                    </button>
-                    <ul class="mobile-accordion__panel">
-                        <?php
-                        $mob_devot = new WP_Query( [
-                            'post_type'      => 'package',
-                            'posts_per_page' => 6,
-                            'post_status'    => 'publish',
-                            'meta_query'     => [ [ 'key' => '_package_type', 'value' => 'Devotional', 'compare' => '=' ] ],
-                        ] );
-                        if ( $mob_devot->have_posts() ) :
-                            while ( $mob_devot->have_posts() ) : $mob_devot->the_post(); ?>
-                        <li><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></li>
-                        <?php endwhile; wp_reset_postdata();
-                        else : ?>
-                        <li><a href="#">Char Dham Yatra</a></li>
-                        <li><a href="#">Tirupati Tour</a></li>
-                        <li><a href="#">Vaishno Devi</a></li>
-                        <li><a href="#">Rameswaram</a></li>
-                        <li><a href="#">Shirdi Tour</a></li>
-                        <li><a href="#">Murugan Temples Circuit</a></li>
-                        <?php endif; ?>
-                        <li class="mega-viewmore"><a href="<?php echo esc_url( travzo_get( 'travzo_menu_devotional_all', home_url( '/packages?type=Devotional' ) ) ); ?>">View All &rarr;</a></li>
-                    </ul>
-                </li>
-
-                <!-- Destination Wedding -->
-                <li class="mobile-accordion">
-                    <button class="mobile-accordion__trigger" aria-expanded="false">
-                        <?php echo esc_html( travzo_get( 'travzo_nav_wedding', 'Dest. Wedding' ) ); ?>
-                        <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-                    </button>
-                    <ul class="mobile-accordion__panel">
-                        <?php
-                        $mob_wed = new WP_Query( [
-                            'post_type'      => 'package',
-                            'posts_per_page' => 6,
-                            'post_status'    => 'publish',
-                            'meta_query'     => [ [ 'key' => '_package_type', 'value' => 'Destination Wedding', 'compare' => '=' ] ],
-                        ] );
-                        if ( $mob_wed->have_posts() ) :
-                            while ( $mob_wed->have_posts() ) : $mob_wed->the_post(); ?>
-                        <li><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></li>
-                        <?php endwhile; wp_reset_postdata();
-                        else : ?>
-                        <li><a href="#">Udaipur Wedding</a></li>
-                        <li><a href="#">Jaipur Wedding</a></li>
-                        <li><a href="#">Goa Beach Wedding</a></li>
-                        <li><a href="#">Kerala Wedding</a></li>
-                        <li><a href="#">Ooty Wedding</a></li>
-                        <li><a href="#">Maldives Wedding</a></li>
-                        <?php endif; ?>
-                        <li class="mega-viewmore"><a href="<?php echo esc_url( travzo_get( 'travzo_menu_wedding_all', home_url( '/packages?type=Destination+Wedding' ) ) ); ?>">View All &rarr;</a></li>
-                    </ul>
-                </li>
-
-                <!-- Solo Trips -->
-                <li class="mobile-accordion">
-                    <button class="mobile-accordion__trigger" aria-expanded="false">
-                        <?php echo esc_html( travzo_get( 'travzo_nav_solo', 'Solo Trips' ) ); ?>
-                        <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-                    </button>
-                    <ul class="mobile-accordion__panel">
-                        <?php
-                        $mob_solo = new WP_Query( [
-                            'post_type'      => 'package',
-                            'posts_per_page' => 6,
-                            'post_status'    => 'publish',
-                            'meta_query'     => [ [ 'key' => '_package_type', 'value' => 'Solo Trip', 'compare' => '=' ] ],
-                        ] );
-                        if ( $mob_solo->have_posts() ) :
-                            while ( $mob_solo->have_posts() ) : $mob_solo->the_post(); ?>
-                        <li><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></li>
-                        <?php endwhile; wp_reset_postdata();
-                        else : ?>
-                        <li><a href="#">Ladakh Solo Trip</a></li>
-                        <li><a href="#">Spiti Valley</a></li>
-                        <li><a href="#">Rishikesh</a></li>
-                        <li><a href="#">Rajasthan Solo</a></li>
-                        <li><a href="#">Andaman Solo</a></li>
-                        <li><a href="#">Northeast India</a></li>
-                        <?php endif; ?>
-                        <li class="mega-viewmore"><a href="<?php echo esc_url( travzo_get( 'travzo_menu_solo_all', home_url( '/packages?type=Solo+Trip' ) ) ); ?>">View All &rarr;</a></li>
-                    </ul>
-                </li>
-
-                <li><a href="<?php echo esc_url( home_url( travzo_get( 'travzo_nav_blog_url', '/blog' ) ) ); ?>"><?php echo esc_html( travzo_get( 'travzo_nav_blog', 'Blog' ) ); ?></a></li>
-                <li><a href="<?php echo esc_url( home_url( travzo_get( 'travzo_nav_about_url', '/about' ) ) ); ?>"><?php echo esc_html( travzo_get( 'travzo_nav_about', 'About' ) ); ?></a></li>
-                <li><a href="<?php echo esc_url( home_url( travzo_get( 'travzo_nav_contact_url', '/contact' ) ) ); ?>"><?php echo esc_html( travzo_get( 'travzo_nav_contact', 'Contact' ) ); ?></a></li>
-
+                <?php else : ?>
+                <li><a href="<?php echo $mob_url; ?>"><?php echo $mob_label; ?></a></li>
+                <?php endif; endforeach; ?>
             </ul>
         </nav>
 

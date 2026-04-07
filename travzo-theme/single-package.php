@@ -4,34 +4,6 @@
  * Travzo Holidays WordPress Theme
  */
 
-// ── Sidebar enquiry form handler ──────────────────────────────────────────────
-$pkg_form_sent  = false;
-$pkg_form_error = '';
-
-if (
-    isset( $_POST['travzo_package_enquiry'], $_POST['travzo_package_nonce'] ) &&
-    wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['travzo_package_nonce'] ) ), 'travzo_package_enquiry_form' )
-) {
-    $enq_name    = sanitize_text_field( wp_unslash( $_POST['enq_name']    ?? '' ) );
-    $enq_phone   = sanitize_text_field( wp_unslash( $_POST['enq_phone']   ?? '' ) );
-    $enq_date    = sanitize_text_field( wp_unslash( $_POST['enq_date']    ?? '' ) );
-    $enq_people  = absint( $_POST['enq_people'] ?? 1 );
-    $enq_package = sanitize_text_field( wp_unslash( $_POST['enq_package'] ?? '' ) );
-
-    if ( $enq_name && $enq_phone ) {
-        $to      = travzo_get( 'travzo_email', 'hello@travzoholidays.com' );
-        $subject = sprintf( '[Travzo Enquiry] %s', $enq_package );
-        $message = sprintf(
-            "Package Enquiry Received\n\nPackage: %s\nName: %s\nPhone: %s\nTravel Date: %s\nNo. of People: %d",
-            $enq_package, $enq_name, $enq_phone, $enq_date, $enq_people
-        );
-        wp_mail( $to, $subject, $message );
-        $pkg_form_sent = true;
-    } else {
-        $pkg_form_error = __( 'Please enter your name and phone number.', 'travzo' );
-    }
-}
-
 get_header();
 
 // ── Star SVG helper ────────────────────────────────────────────────────────────
@@ -51,36 +23,128 @@ $pkg_price      = get_post_meta( $pkg_id, '_package_price',        true );
 $pkg_duration   = get_post_meta( $pkg_id, '_package_duration',     true );
 $pkg_dest       = get_post_meta( $pkg_id, '_package_destinations', true );
 $pkg_group_size  = get_post_meta( $pkg_id, '_package_group_size',    true );
-$pkg_highlights  = get_post_meta( $pkg_id, '_package_highlights',    true );
 $pkg_inclusions  = get_post_meta( $pkg_id, '_package_inclusions',    true );
 $pkg_exclusions  = get_post_meta( $pkg_id, '_package_exclusions',    true );
 $pkg_download    = get_post_meta( $pkg_id, '_package_download_url',  true );
 
-// Photo gallery: attached images (uploaded via WordPress media)
-$pkg_gallery = get_attached_media( 'image', $pkg_id );
+// Photo gallery: from _pkg_gallery meta (array of attachment IDs)
+$pkg_gallery_raw = get_post_meta( $pkg_id, '_pkg_gallery', true );
+if ( ! is_array( $pkg_gallery_raw ) ) {
+    $pkg_gallery_raw = $pkg_gallery_raw ? array_filter( array_map( 'absint', explode( ',', $pkg_gallery_raw ) ) ) : [];
+}
+$pkg_gallery = array_filter( $pkg_gallery_raw );
 
-// Itinerary: cols [0]="Day 1: Title", [1]=description
-$pkg_itinerary = travzo_parse_lines( get_post_meta( $pkg_id, '_package_itinerary', true ), 2 );
+// Highlights: textarea (one per line) → fallback to v2 JSON → fallback to old textarea
+$pkg_highlights = get_post_meta( $pkg_id, '_pkg_highlights', true );
+if ( ! $pkg_highlights ) {
+    $pkg_highlights_v2 = get_post_meta( $pkg_id, '_pkg_highlights_v2', true );
+    if ( is_array( $pkg_highlights_v2 ) && ! empty( $pkg_highlights_v2 ) ) {
+        $pkg_highlights = implode( "\n", $pkg_highlights_v2 );
+    } else {
+        $pkg_highlights = get_post_meta( $pkg_id, '_package_highlights', true );
+    }
+}
 
-// Hotels: cols [0]=name, [1]=stars, [2]=location, [3]=room
-$pkg_hotels = travzo_parse_lines( get_post_meta( $pkg_id, '_package_hotels', true ), 4 );
+// Itinerary: new v2 JSON array → fallback to old pipe-separated
+$pkg_itinerary_v2 = get_post_meta( $pkg_id, '_pkg_itinerary_v2', true );
+if ( is_array( $pkg_itinerary_v2 ) && ! empty( $pkg_itinerary_v2 ) ) {
+    $pkg_itinerary = $pkg_itinerary_v2; // Array of {day_title, description}
+} else {
+    $pkg_itinerary = travzo_parse_lines( get_post_meta( $pkg_id, '_package_itinerary', true ), 2 );
+    // Normalize old format to match new structure
+    if ( $pkg_itinerary ) {
+        $normalized = [];
+        foreach ( $pkg_itinerary as $row ) {
+            $normalized[] = [ 'day_title' => $row[0] ?? '', 'description' => $row[1] ?? '' ];
+        }
+        $pkg_itinerary = $normalized;
+    }
+}
+
+// Hotels: new v2 JSON array → fallback to old pipe-separated
+$pkg_hotels_v2 = get_post_meta( $pkg_id, '_pkg_hotels_v2', true );
+if ( is_array( $pkg_hotels_v2 ) && ! empty( $pkg_hotels_v2 ) ) {
+    $pkg_hotels = $pkg_hotels_v2; // Array of {name, stars, location, room_type, image}
+} else {
+    $old_hotels = travzo_parse_lines( get_post_meta( $pkg_id, '_package_hotels', true ), 4 );
+    $pkg_hotels = [];
+    if ( $old_hotels ) {
+        foreach ( $old_hotels as $row ) {
+            $pkg_hotels[] = [
+                'name'      => $row[0] ?? '',
+                'stars'     => $row[1] ?? '3',
+                'location'  => $row[2] ?? '',
+                'room_type' => $row[3] ?? '',
+                'image'     => '',
+            ];
+        }
+    }
+}
 
 $pricing = [
     'standard_twin'   => get_post_meta( $pkg_id, '_price_standard_twin',   true ),
     'standard_triple' => get_post_meta( $pkg_id, '_price_standard_triple', true ),
+    'standard_single' => get_post_meta( $pkg_id, '_price_standard_single', true ),
     'deluxe_twin'     => get_post_meta( $pkg_id, '_price_deluxe_twin',     true ),
     'deluxe_triple'   => get_post_meta( $pkg_id, '_price_deluxe_triple',   true ),
+    'deluxe_single'   => get_post_meta( $pkg_id, '_price_deluxe_single',   true ),
     'premium_twin'    => get_post_meta( $pkg_id, '_price_premium_twin',    true ),
     'premium_triple'  => get_post_meta( $pkg_id, '_price_premium_triple',  true ),
+    'premium_single'  => get_post_meta( $pkg_id, '_price_premium_single',  true ),
     'child_bed'       => get_post_meta( $pkg_id, '_price_child_bed',       true ),
     'child_no_bed'    => get_post_meta( $pkg_id, '_price_child_no_bed',    true ),
 ];
 
+// Pricing meta
+$pricing_visible     = get_post_meta( $pkg_id, '_pkg_pricing_visible', true );
+if ( $pricing_visible === '' ) $pricing_visible = '1';
+$pricing_note        = get_post_meta( $pkg_id, '_pkg_pricing_note', true );
+$pricing_recommended = get_post_meta( $pkg_id, '_pkg_pricing_recommended', true );
+$has_single_prices   = $pricing['standard_single'] || $pricing['deluxe_single'] || $pricing['premium_single'];
+
+// Important Information meta
+$info_visible = get_post_meta( $pkg_id, '_pkg_important_info_visible', true );
+if ( $info_visible === '' ) $info_visible = '1';
+$info_heading = get_post_meta( $pkg_id, '_pkg_important_info_heading', true ) ?: 'Important Information';
+$info_items   = get_post_meta( $pkg_id, '_pkg_important_info', true );
+
+// Type-specific fields
+$pkg_country = get_post_meta( $pkg_id, '_pkg_country', true );
+$pkg_region  = get_post_meta( $pkg_id, '_pkg_region', true );
+
+// Group Tour
+$ts_group_size       = get_post_meta( $pkg_id, '_package_group_size', true );
+$ts_departure_cities = get_post_meta( $pkg_id, '_pkg_departure_cities', true );
+$ts_tour_manager     = get_post_meta( $pkg_id, '_pkg_tour_manager', true );
+$ts_languages        = get_post_meta( $pkg_id, '_pkg_languages', true );
+
+// Honeymoon
+$ts_couple_inclusions  = get_post_meta( $pkg_id, '_pkg_couple_inclusions', true );
+$ts_romantic_activities = get_post_meta( $pkg_id, '_pkg_romantic_activities', true );
+$ts_privacy_level      = get_post_meta( $pkg_id, '_pkg_privacy_level', true );
+$ts_suite_type         = get_post_meta( $pkg_id, '_pkg_suite_type', true );
+
+// Solo Trip
+$ts_age_group       = get_post_meta( $pkg_id, '_pkg_age_group', true );
+$ts_safety_rating   = get_post_meta( $pkg_id, '_pkg_safety_rating', true );
+$ts_female_friendly = get_post_meta( $pkg_id, '_pkg_female_friendly', true );
+$ts_mixer_activities = get_post_meta( $pkg_id, '_pkg_mixer_activities', true );
+$ts_single_room     = get_post_meta( $pkg_id, '_pkg_single_room', true );
+
+// Devotional
+$ts_religion   = get_post_meta( $pkg_id, '_pkg_religion', true );
+$ts_temples    = get_post_meta( $pkg_id, '_pkg_temples', true );
+$ts_pujas      = get_post_meta( $pkg_id, '_pkg_pujas', true );
+$ts_dress_code = get_post_meta( $pkg_id, '_pkg_dress_code', true );
+$ts_vegetarian = get_post_meta( $pkg_id, '_pkg_vegetarian', true );
+$ts_priest     = get_post_meta( $pkg_id, '_pkg_priest', true );
+
 // Info pill fallbacks
 $pkg_duration   = $pkg_duration   ?: '5 Nights / 6 Days';
 $pkg_dest       = $pkg_dest       ?: 'Multiple Destinations';
-$pkg_group_size = $pkg_group_size ?: '2 – 15 People';
-$pkg_price      = $pkg_price      ?: '15,000';
+// Group size: only display if set (it's Group Tour specific now)
+$pkg_price_raw  = $pkg_price      ?: '15000';
+$pkg_price      = is_numeric( $pkg_price_raw ) ? number_format( (int) $pkg_price_raw ) : $pkg_price_raw;
 
 // Hero background
 $hero_img_url = has_post_thumbnail() ? get_the_post_thumbnail_url( get_the_ID(), 'full' ) : '';
@@ -156,10 +220,12 @@ $has_pricing = (bool) array_filter( $pricing );
                 <?php echo esc_html( $pkg_dest ); ?>
             </span>
 
+            <?php if ( $pkg_group_size ) : ?>
             <span class="package-hero__pill" role="listitem">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
                 <?php echo esc_html( $pkg_group_size ); ?>
             </span>
+            <?php endif; ?>
 
             <span class="package-hero__pill" role="listitem">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
@@ -191,10 +257,14 @@ $has_pricing = (bool) array_filter( $pricing );
             <!-- ══ Overview ════════════════════════════════════ -->
             <div class="tab-panel active" id="panel-overview" role="tabpanel">
 
-                <h3 class="pkg-section-heading"><?php esc_html_e( 'Package Overview', 'travzo' ); ?></h3>
+                <?php
+                $overview_content = get_the_content();
+                if ( trim( $overview_content ) ) :
+                ?>
                 <div class="pkg-description entry-content">
                     <?php the_content(); ?>
                 </div>
+                <?php endif; ?>
 
                 <h3 class="pkg-section-heading"><?php esc_html_e( 'Package Highlights', 'travzo' ); ?></h3>
                 <ul class="pkg-highlights-list">
@@ -206,16 +276,104 @@ $has_pricing = (bool) array_filter( $pricing );
                     <?php endforeach; ?>
                 </ul>
 
-                <?php if ( $pkg_gallery ) : ?>
+                <?php
+                // ── Type-Specific Details Card ──
+                $type_details = [];
+                $type_heading = '';
+                $type_badges  = [];
+                $type_lists   = [];
+
+                switch ( $pkg_type ) {
+                    case 'Group Tour':
+                        $type_heading = __( 'Group Tour Details', 'travzo' );
+                        if ( $ts_group_size )       $type_details[ __( 'Group Size', 'travzo' ) ]       = $ts_group_size;
+                        if ( $ts_departure_cities ) $type_details[ __( 'Departure Cities', 'travzo' ) ] = $ts_departure_cities;
+                        if ( $ts_languages )        $type_details[ __( 'Languages', 'travzo' ) ]        = $ts_languages;
+                        if ( $ts_tour_manager === '1' ) $type_badges[] = __( 'Tour Manager Included', 'travzo' );
+                        break;
+
+                    case 'Honeymoon':
+                        $type_heading = __( 'Honeymoon Details', 'travzo' );
+                        if ( $ts_privacy_level ) $type_details[ __( 'Privacy Level', 'travzo' ) ] = $ts_privacy_level;
+                        if ( $ts_suite_type )    $type_details[ __( 'Suite Type', 'travzo' ) ]    = $ts_suite_type;
+                        if ( $ts_couple_inclusions )  $type_lists[ __( 'Couple Inclusions', 'travzo' ) ]  = travzo_split_list( $ts_couple_inclusions );
+                        if ( $ts_romantic_activities ) $type_lists[ __( 'Romantic Activities', 'travzo' ) ] = travzo_split_list( $ts_romantic_activities );
+                        break;
+
+                    case 'Solo Trip':
+                        $type_heading = __( 'Solo Trip Details', 'travzo' );
+                        if ( $ts_age_group )     $type_details[ __( 'Target Age Group', 'travzo' ) ] = $ts_age_group;
+                        if ( $ts_safety_rating ) $type_details[ __( 'Safety Rating', 'travzo' ) ]    = $ts_safety_rating;
+                        if ( $ts_female_friendly === '1' ) $type_badges[] = __( 'Female-Friendly', 'travzo' );
+                        if ( $ts_single_room === '1' )     $type_badges[] = __( 'Single Room Guaranteed', 'travzo' );
+                        if ( $ts_mixer_activities ) $type_lists[ __( 'Social Mixer Activities', 'travzo' ) ] = travzo_split_list( $ts_mixer_activities );
+                        break;
+
+                    case 'Devotional':
+                        $type_heading = __( 'Devotional Tour Details', 'travzo' );
+                        if ( $ts_religion )   $type_details[ __( 'Religion / Tradition', 'travzo' ) ] = $ts_religion;
+                        if ( $ts_dress_code ) $type_details[ __( 'Dress Code', 'travzo' ) ]           = $ts_dress_code;
+                        if ( $ts_priest )     $type_details[ __( 'Priest Coordination', 'travzo' ) ]  = $ts_priest;
+                        if ( $ts_vegetarian === '1' ) $type_badges[] = __( 'Vegetarian Meals Only', 'travzo' );
+                        if ( $ts_temples ) $type_lists[ __( 'Temples / Holy Sites', 'travzo' ) ] = travzo_split_list( $ts_temples );
+                        if ( $ts_pujas )   $type_lists[ __( 'Special Pujas / Rituals', 'travzo' ) ] = travzo_split_list( $ts_pujas );
+                        break;
+                }
+
+                if ( $type_heading && ( $type_details || $type_badges || $type_lists ) ) :
+                ?>
+                <h3 class="pkg-section-heading"><?php echo esc_html( $type_heading ); ?></h3>
+                <div class="pkg-type-card">
+
+                    <?php if ( $type_details ) : ?>
+                    <div class="pkg-type-grid">
+                        <?php foreach ( $type_details as $label => $value ) : ?>
+                        <div class="pkg-type-field">
+                            <span class="pkg-type-field__label"><?php echo esc_html( $label ); ?></span>
+                            <span class="pkg-type-field__value"><?php echo esc_html( $value ); ?></span>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php endif; ?>
+
+                    <?php if ( $type_badges ) : ?>
+                    <div class="pkg-type-badges">
+                        <?php foreach ( $type_badges as $badge ) : ?>
+                        <span class="pkg-type-badge">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#C9A227" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                            <?php echo esc_html( $badge ); ?>
+                        </span>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php endif; ?>
+
+                    <?php foreach ( $type_lists as $list_label => $list_items ) :
+                        if ( empty( $list_items ) ) continue;
+                    ?>
+                    <div class="pkg-type-list-section">
+                        <h4 class="pkg-type-list-heading"><?php echo esc_html( $list_label ); ?></h4>
+                        <ul class="pkg-type-list">
+                            <?php foreach ( $list_items as $item ) : ?>
+                            <li><?php echo esc_html( $item ); ?></li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </div>
+                    <?php endforeach; ?>
+
+                </div><!-- /.pkg-type-card -->
+                <?php endif; ?>
+
+                <?php if ( ! empty( $pkg_gallery ) ) : ?>
                 <h3 class="pkg-section-heading"><?php esc_html_e( 'Photo Gallery', 'travzo' ); ?></h3>
                 <div class="pkg-gallery" role="list">
-                    <?php foreach ( $pkg_gallery as $img ) :
-                        $img_url = wp_get_attachment_url( $img->ID );
-                        $img_med = wp_get_attachment_image_url( $img->ID, 'medium' ) ?: $img_url;
-                        $img_alt = get_post_meta( $img->ID, '_wp_attachment_image_alt', true );
+                    <?php foreach ( $pkg_gallery as $img_id ) :
+                        $img_url = wp_get_attachment_image_url( $img_id, 'large' );
+                        $img_med = wp_get_attachment_image_url( $img_id, 'medium' ) ?: $img_url;
+                        $img_alt = get_post_meta( $img_id, '_wp_attachment_image_alt', true );
                         if ( ! $img_url ) continue;
                     ?>
                     <a class="pkg-gallery__item" href="<?php echo esc_url( $img_url ); ?>" role="listitem"
+                       data-lightbox="gallery"
                        aria-label="<?php echo esc_attr( $img_alt ?: get_the_title() ); ?>">
                         <img src="<?php echo esc_url( $img_med ); ?>" alt="<?php echo esc_attr( $img_alt ); ?>" loading="lazy">
                     </a>
@@ -233,9 +391,8 @@ $has_pricing = (bool) array_filter( $pricing );
 
                 <?php if ( $pkg_itinerary ) :
                     foreach ( $pkg_itinerary as $day ) :
-                        // [0] = "Day 1: Title", [1] = description
-                        $day_label = $day[0] ?? '';
-                        $day_desc  = $day[1] ?? '';
+                        $day_label = $day['day_title'] ?? '';
+                        $day_desc  = $day['description'] ?? '';
                 ?>
                 <div class="itinerary-day">
                     <span class="day-badge"><?php echo esc_html( $day_label ); ?></span>
@@ -319,12 +476,11 @@ $has_pricing = (bool) array_filter( $pricing );
 
                 <?php if ( $pkg_hotels ) :
                     foreach ( $pkg_hotels as $hotel ) :
-                        // cols: [0]=name, [1]=stars, [2]=location, [3]=room
-                        $h_name     = $hotel[0] ?? '';
-                        $h_stars    = (int) ( $hotel[1] ?? 3 );
-                        $h_location = $hotel[2] ?? '';
-                        $h_room     = $hotel[3] ?? '';
-                        $h_img      = '';
+                        $h_name     = $hotel['name'] ?? '';
+                        $h_stars    = (int) ( $hotel['stars'] ?? 3 );
+                        $h_location = $hotel['location'] ?? '';
+                        $h_room     = $hotel['room_type'] ?? '';
+                        $h_img      = $hotel['image'] ?? '';
                 ?>
                 <div class="hotel-card">
                     <div class="hotel-card__image-wrap<?php echo $h_img ? '' : ' hotel-card__image-wrap--placeholder'; ?>">
@@ -412,7 +568,7 @@ $has_pricing = (bool) array_filter( $pricing );
 
                     <h4 class="sidebar-card__form-heading"><?php esc_html_e( 'Quick Enquiry', 'travzo' ); ?></h4>
 
-                    <?php travzo_render_form( 'travzo_form_package', travzo_default_package_form( $pkg_id ) ); ?>
+                    <?php travzo_render_form( travzo_default_package_form( $pkg_id ) ); ?>
 
                     <?php if ( $pkg_download ) : ?>
                     <!-- Download Itinerary -->
@@ -450,18 +606,22 @@ $has_pricing = (bool) array_filter( $pricing );
      SECTION 3 – PRICING TABLE
 ════════════════════════════════════════════════════════════ -->
 <?php
-// Price formatter: adds ₹ prefix if not already present
+// Price formatter: ₹ prefix + number_format
 function travzo_fmt_price( $val ) {
-    if ( ! $val ) return '<span class="pricing-na">—</span>';
+    if ( ! $val && $val !== '0' && $val !== 0 ) return '<span class="pricing-na">—</span>';
     $val = trim( $val );
+    if ( is_numeric( $val ) ) {
+        return '₹' . esc_html( number_format( (int) $val ) );
+    }
     return esc_html( strpos( $val, '₹' ) === false ? '₹' . $val : $val );
 }
 ?>
+<?php if ( $pricing_visible === '1' ) : ?>
 <section class="pricing-section">
     <div class="pricing-section__inner">
 
         <h2 class="section-heading pkg-centered-heading"><?php esc_html_e( 'Package Pricing', 'travzo' ); ?></h2>
-        <p class="pkg-centered-subtext"><?php esc_html_e( 'All prices are per person. Contact us for group discounts.', 'travzo' ); ?></p>
+        <p class="pkg-centered-subtext"><?php echo esc_html( $pricing_note ?: __( 'All prices are per person. Contact us for group discounts.', 'travzo' ) ); ?></p>
 
         <?php if ( $has_pricing ) : ?>
         <div class="pricing-table-wrap">
@@ -471,35 +631,39 @@ function travzo_fmt_price( $val ) {
                         <th scope="col"><?php esc_html_e( 'Room Type', 'travzo' ); ?></th>
                         <th scope="col"><?php esc_html_e( 'Twin Sharing', 'travzo' ); ?></th>
                         <th scope="col"><?php esc_html_e( 'Triple Sharing', 'travzo' ); ?></th>
+                        <?php if ( $has_single_prices ) : ?>
+                        <th scope="col"><?php esc_html_e( 'Single Room', 'travzo' ); ?></th>
+                        <?php endif; ?>
                         <th scope="col"><?php esc_html_e( 'Child with Bed', 'travzo' ); ?></th>
                         <th scope="col"><?php esc_html_e( 'Child without Bed', 'travzo' ); ?></th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr>
-                        <th scope="row"><?php esc_html_e( 'Standard Room', 'travzo' ); ?></th>
-                        <td><?php echo travzo_fmt_price( $pricing['standard_twin'] ); ?></td>
-                        <td><?php echo travzo_fmt_price( $pricing['standard_triple'] ); ?></td>
-                        <td><?php echo travzo_fmt_price( $pricing['child_bed'] ); ?></td>
-                        <td><?php echo travzo_fmt_price( $pricing['child_no_bed'] ); ?></td>
-                    </tr>
-                    <tr class="pricing-table__recommended">
+                    <?php
+                    $tiers = [
+                        'Standard' => [ 'standard_twin', 'standard_triple', 'standard_single' ],
+                        'Deluxe'   => [ 'deluxe_twin',   'deluxe_triple',   'deluxe_single'   ],
+                        'Premium'  => [ 'premium_twin',  'premium_triple',  'premium_single'  ],
+                    ];
+                    foreach ( $tiers as $tier_name => $keys ) :
+                        $is_recommended = ( $pricing_recommended === $tier_name );
+                    ?>
+                    <tr<?php echo $is_recommended ? ' class="pricing-table__recommended"' : ''; ?>>
                         <th scope="row">
-                            <?php esc_html_e( 'Deluxe Room', 'travzo' ); ?>
-                            <span class="recommended-badge"><?php esc_html_e( 'Recommended', 'travzo' ); ?></span>
+                            <?php echo esc_html( $tier_name . ' Room' ); ?>
+                            <?php if ( $is_recommended ) : ?>
+                                <span class="recommended-badge"><?php esc_html_e( 'Recommended', 'travzo' ); ?></span>
+                            <?php endif; ?>
                         </th>
-                        <td><?php echo travzo_fmt_price( $pricing['deluxe_twin'] ); ?></td>
-                        <td><?php echo travzo_fmt_price( $pricing['deluxe_triple'] ); ?></td>
+                        <td><?php echo travzo_fmt_price( $pricing[ $keys[0] ] ); ?></td>
+                        <td><?php echo travzo_fmt_price( $pricing[ $keys[1] ] ); ?></td>
+                        <?php if ( $has_single_prices ) : ?>
+                        <td><?php echo travzo_fmt_price( $pricing[ $keys[2] ] ); ?></td>
+                        <?php endif; ?>
                         <td><?php echo travzo_fmt_price( $pricing['child_bed'] ); ?></td>
                         <td><?php echo travzo_fmt_price( $pricing['child_no_bed'] ); ?></td>
                     </tr>
-                    <tr>
-                        <th scope="row"><?php esc_html_e( 'Premium Room', 'travzo' ); ?></th>
-                        <td><?php echo travzo_fmt_price( $pricing['premium_twin'] ); ?></td>
-                        <td><?php echo travzo_fmt_price( $pricing['premium_triple'] ); ?></td>
-                        <td><?php echo travzo_fmt_price( $pricing['child_bed'] ); ?></td>
-                        <td><?php echo travzo_fmt_price( $pricing['child_no_bed'] ); ?></td>
-                    </tr>
+                    <?php endforeach; ?>
                 </tbody>
             </table>
         </div><!-- /.pricing-table-wrap -->
@@ -510,71 +674,62 @@ function travzo_fmt_price( $val ) {
 
     </div>
 </section>
+<?php endif; ?>
 
 
 <!-- ════════════════════════════════════════════════════════════
      SECTION 4 – TERMS ACCORDION
 ════════════════════════════════════════════════════════════ -->
+<?php
+// Build accordion items: use meta if available, else hardcoded defaults
+$accordion_items = [];
+if ( $info_visible === '1' ) {
+    if ( is_array( $info_items ) && ! empty( $info_items ) ) {
+        $accordion_items = $info_items;
+    } else {
+        // Hardcoded fallback
+        $accordion_items = [
+            [ 'title' => 'Cancellation Policy', 'content' => 'Cancellations 30+ days before departure: 10% cancellation charge. Cancellations 15–30 days before: 25% forfeited. Cancellations 7–14 days before: 50% forfeited. Within 7 days or no-show: 100% forfeited. All cancellation requests must be submitted in writing to hello@travzoholidays.com.' ],
+            [ 'title' => 'Payment Terms', 'content' => 'A 25% deposit is required to confirm your booking. The remaining balance is due 21 days before departure. Bookings within 21 days require full payment upfront. We accept bank transfer, UPI, and credit/debit cards (2% processing fee applies).' ],
+            [ 'title' => 'Visa Information', 'content' => 'Visa fees are not included unless stated. Our team provides visa assistance and guidance. Approval is subject to the respective embassy\'s discretion. Ensure your passport is valid for at least 6 months from travel date. Apply well in advance. Travzo is not responsible for rejections.' ],
+            [ 'title' => 'Things to Carry', 'content' => 'Valid government-issued photo ID. Passport & visa for international travel. Travel insurance documents. Comfortable walking shoes and weather-appropriate clothing. Sunscreen, sunglasses, and personal medications. Power bank and travel adapters. Copies of important documents stored separately.' ],
+            [ 'title' => 'Important Notes', 'content' => 'Itinerary is subject to change due to weather or circumstances beyond our control. Hotels may be substituted with equivalent category. All guests are expected to respect local customs and laws. The tour manager\'s decision is final for operational matters. Travel insurance is strongly recommended. Contact our 24/7 helpline in case of emergency.' ],
+        ];
+    }
+}
+if ( ! empty( $accordion_items ) ) :
+?>
 <section class="terms-section">
     <div class="terms-section__inner">
 
-        <h2 class="section-heading pkg-centered-heading"><?php esc_html_e( 'Important Information', 'travzo' ); ?></h2>
+        <h2 class="section-heading pkg-centered-heading"><?php echo esc_html( $info_heading ); ?></h2>
 
         <div class="pkg-accordion">
-
+            <?php foreach ( $accordion_items as $acc_item ) :
+                $acc_title   = $acc_item['title'] ?? '';
+                $acc_content = $acc_item['content'] ?? '';
+                if ( ! $acc_title && ! $acc_content ) continue;
+            ?>
             <div class="accordion-item">
                 <button class="accordion-item__trigger" aria-expanded="false">
-                    <?php esc_html_e( 'Cancellation Policy', 'travzo' ); ?>
+                    <?php echo esc_html( $acc_title ); ?>
                     <svg class="accordion-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C9A227" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
                 <div class="accordion-item__panel">
-                    <p><?php esc_html_e( 'Cancellations 30+ days before departure: 10% cancellation charge. Cancellations 15–30 days before: 25% forfeited. Cancellations 7–14 days before: 50% forfeited. Within 7 days or no-show: 100% forfeited. All cancellation requests must be submitted in writing to hello@travzoholidays.com.', 'travzo' ); ?></p>
+                    <div class="accordion-item__body">
+                    <?php
+                    // Strip leading H3 to avoid duplicate title (accordion header already shows it)
+                    $acc_content = preg_replace( '/^\s*<h3[^>]*>.*?<\/h3>\s*/i', '', $acc_content, 1 );
+                    echo wp_kses_post( $acc_content );
+                    ?>
+                    </div>
                 </div>
             </div>
-
-            <div class="accordion-item">
-                <button class="accordion-item__trigger" aria-expanded="false">
-                    <?php esc_html_e( 'Payment Terms', 'travzo' ); ?>
-                    <svg class="accordion-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C9A227" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
-                <div class="accordion-item__panel">
-                    <p><?php esc_html_e( 'A 25% deposit is required to confirm your booking. The remaining balance is due 21 days before departure. Bookings within 21 days require full payment upfront. We accept bank transfer, UPI, and credit/debit cards (2% processing fee applies).', 'travzo' ); ?></p>
-                </div>
-            </div>
-
-            <div class="accordion-item">
-                <button class="accordion-item__trigger" aria-expanded="false">
-                    <?php esc_html_e( 'Visa Information', 'travzo' ); ?>
-                    <svg class="accordion-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C9A227" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
-                <div class="accordion-item__panel">
-                    <p><?php esc_html_e( 'Visa fees are not included unless stated. Our team provides visa assistance and guidance. Approval is subject to the respective embassy\'s discretion. Ensure your passport is valid for at least 6 months from travel date. Apply well in advance. Travzo is not responsible for rejections.', 'travzo' ); ?></p>
-                </div>
-            </div>
-
-            <div class="accordion-item">
-                <button class="accordion-item__trigger" aria-expanded="false">
-                    <?php esc_html_e( 'Things to Carry', 'travzo' ); ?>
-                    <svg class="accordion-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C9A227" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
-                <div class="accordion-item__panel">
-                    <p><?php esc_html_e( 'Valid government-issued photo ID. Passport & visa for international travel. Travel insurance documents. Comfortable walking shoes and weather-appropriate clothing. Sunscreen, sunglasses, and personal medications. Power bank and travel adapters. Copies of important documents stored separately.', 'travzo' ); ?></p>
-                </div>
-            </div>
-
-            <div class="accordion-item">
-                <button class="accordion-item__trigger" aria-expanded="false">
-                    <?php esc_html_e( 'Important Notes', 'travzo' ); ?>
-                    <svg class="accordion-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C9A227" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
-                <div class="accordion-item__panel">
-                    <p><?php esc_html_e( 'Itinerary is subject to change due to weather or circumstances beyond our control. Hotels may be substituted with equivalent category. All guests are expected to respect local customs and laws. The tour manager\'s decision is final for operational matters. Travel insurance is strongly recommended. Contact our 24/7 helpline in case of emergency.', 'travzo' ); ?></p>
-                </div>
-            </div>
-
+            <?php endforeach; ?>
         </div><!-- /.pkg-accordion -->
     </div>
 </section>
+<?php endif; ?>
 
 
 <!-- ════════════════════════════════════════════════════════════
@@ -653,10 +808,12 @@ if ( $similar_packages->post_count < 3 ) {
                             2–15 Pax
                         </span>
                     </div>
-                    <?php if ( $sim_price ) : ?>
+                    <?php if ( $sim_price ) :
+                        $sim_price_fmt = is_numeric( $sim_price ) ? number_format( (int) $sim_price ) : $sim_price;
+                    ?>
                     <div class="package-card__price">
                         <span class="package-card__price-from"><?php esc_html_e( 'Starting from', 'travzo' ); ?></span>
-                        <span class="package-card__price-amount">&#8377;<?php echo esc_html( $sim_price ); ?></span>
+                        <span class="package-card__price-amount">&#8377;<?php echo esc_html( $sim_price_fmt ); ?></span>
                     </div>
                     <?php endif; ?>
                     <a href="<?php the_permalink(); ?>" class="pkg-cta-btn"><?php esc_html_e( 'View Package', 'travzo' ); ?></a>

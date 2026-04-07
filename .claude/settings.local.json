@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(php -l functions.php)",
-      "Bash(php -l front-page.php)"
+      "Bash(php -l front-page.php)",
+      "Bash(where php:*)",
+      "Read(//c/xampp/php/**)",
+      "Read(//c/wamp64/bin/**)",
+      "Bash(php:*)"
     ]
   }
 }
