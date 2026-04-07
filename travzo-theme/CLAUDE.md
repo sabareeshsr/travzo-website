@@ -37,7 +37,8 @@ travzo-theme/
 ├── front-page.php         — Homepage (set via Settings > Reading)
 ├── archive-package.php    — Package listing with filters
 ├── single-package.php     — Individual package detail
-├── archive.php            — Blog listing
+├── home.php               — Blog index (Posts page — requires Settings > Reading setup)
+├── archive.php            — Blog category/date archives
 ├── single.php             — Blog post detail
 ├── page-about.php         — About page (Template Name: About Page)
 ├── page-contact.php       — Contact page (Template Name: Contact Page)
@@ -69,14 +70,17 @@ Sections:
 - Contact Information: travzo_phone, travzo_email, travzo_whatsapp, travzo_address, travzo_hours
 - Social Media Links: travzo_instagram, travzo_facebook, travzo_youtube
 - Header Settings: travzo_utility_text
+- Header – Navigation Labels: travzo_nav_home/group/honeymoon/devotional/wedding/solo/blog/about/contact/cta_text + URL fields
 - Footer Settings: travzo_footer_tagline, travzo_footer_address, travzo_footer_hours, travzo_footer_copyright
 - Header - Mega Menu URLs: travzo_menu_group_all, travzo_menu_honeymoon_all etc
-- Homepage - Hero Section: travzo_hero_badge, travzo_hero_heading etc
-- Homepage - Stats Bar: travzo_stat_1_number, travzo_stat_1_label (x4)
-- Homepage - About Snippet: travzo_about_label, travzo_about_heading etc
+- Header - Mega Menu Column Headings: travzo_mega_group_col1_heading, travzo_mega_honey_col1_heading, travzo_mega_devot_col1_heading, travzo_mega_wed_col1_heading, travzo_mega_solo_col1_heading
+- Header - Mega Menu Destinations: travzo_mega_group_col2/3/4_heading + _items, travzo_mega_honeymoon_col2/3/4_heading + _items, travzo_mega_devotional_col2/3_heading + _items, travzo_mega_wedding_col2/3_heading + _items, travzo_mega_solo_col2_heading + _items
+- Homepage - Hero Section: MOVED TO META BOX (see _homepage_hero_* below)
+- Homepage - Stats Bar: MOVED TO META BOX (see _homepage_stats below)
+- Homepage - About Snippet: MOVED TO META BOX (see _homepage_about_* below)
 - Homepage - Our Packages Section: travzo_packages_label, travzo_packages_heading
-- Homepage - Why Choose Us: travzo_why_us_label, travzo_why_us_heading, travzo_why_us_tiles
-- Homepage - Contact Section: travzo_contact_label, travzo_contact_heading, travzo_contact_desc
+- Homepage - Why Choose Us: MOVED TO META BOX (see _homepage_whyus below)
+- Homepage - Contact Section: MOVED TO META BOX (see _homepage_contact_* below). Form ID stays in Customizer → WPForms
 - Homepage - Newsletter: travzo_newsletter_heading, travzo_newsletter_subtext
 - Packages List Page - Hero: travzo_packages_hero_title, travzo_packages_hero_desc etc
 - About Page - Hero: travzo_about_hero_title, travzo_about_hero_desc, travzo_about_hero_image
@@ -91,7 +95,12 @@ Sections:
 Visible when editing pages in WP admin.
 
 Homepage (front page):
-- _testimonials: pipe-separated textarea "Name | Trip | Quote"
+- _homepage_hero_badge, _homepage_hero_heading, _homepage_hero_subtext, _homepage_hero_btn1_text, _homepage_hero_btn1_url, _homepage_hero_btn2_text, _homepage_hero_btn2_url, _homepage_hero_image
+- _homepage_about_label, _homepage_about_heading, _homepage_about_description, _homepage_about_keypoints, _homepage_about_image, _homepage_about_btn_text, _homepage_about_btn_url
+- _homepage_contact_label, _homepage_contact_heading, _homepage_contact_description, _homepage_contact_hours
+- _homepage_stats: serialized array [ { number, label, sublabel } ] from repeater UI
+- _homepage_whyus: serialized array { label, heading, tiles: [ { icon, title, desc } ] } from repeater UI
+- _testimonials: serialized array from repeater UI [ { name, trip, quote, rating } ]
 - _package_tiles_v2: serialized array from repeater UI
 
 About Page (template: page-about.php):
@@ -142,12 +151,12 @@ Package Flags (sidebar):
 - _is_featured_blog: checkbox — shows in homepage blog section
 
 ## Helper Functions
-travzo_get($key, $fallback)     — Get customizer value with fallback
-travzo_parse_lines($text, $n)   — Parse pipe-separated textarea into array
-travzo_get_hero($post_id)       — Get hero image/heading/subtext from post meta
-travzo_render_form($key, $html) — Render WPForms shortcode or fallback HTML
-travzo_default_enquiry_form()   — Returns default enquiry form HTML
-travzo_default_package_form($id)— Returns default package enquiry form HTML
+travzo_get($key, $fallback)                              — Get customizer value with fallback
+travzo_parse_lines($text, $n)                            — Parse pipe-separated textarea into array
+travzo_render_form($key, $html)                          — Render WPForms shortcode or fallback HTML
+travzo_default_enquiry_form()                            — Returns default enquiry form HTML
+travzo_default_package_form($id)                         — Returns default package enquiry form HTML
+travzo_render_mega_col($heading_key, $items_key, $url, $text) — Render a mega menu destination column from customizer textarea; items one per line, optional URL via pipe separator
 
 ## Development Rules — READ BEFORE EVERY CHANGE
 
@@ -196,6 +205,13 @@ After making changes verify:
 - All get_post_meta() keys match exactly what is saved in save_post hooks
 - Package type values match canonical list
 
+## Blog Page — WordPress Setup Required
+The blog archive page (home.php) requires WordPress to have a "Posts page" configured:
+1. Go to **Pages → Add New**, create a page titled "Blog" (leave content empty), publish it
+2. Go to **Settings → Reading**
+3. Set "Posts page" to the Blog page just created
+This makes WordPress load home.php for the blog listing URL instead of index.php.
+
 ## Known Issues Log
 Track bugs and fixes here as they are resolved.
 
@@ -211,6 +227,18 @@ Track bugs and fixes here as they are resolved.
 | 8 | Blog newsletter hardcoded | Fixed | archive.php uses travzo_render_form |
 | 9 | Customizer naming conflict address/hours | Fixed | Clear separation in footer.php and page-contact.php |
 | 10 | Our Packages section labels hardcoded | Fixed | Customizer travzo_packages_section |
+| 11 | Package detail page content overlap with hero | Fixed | z-index stacking in main.css (.package-layout z-index:10) |
+| 12 | Footer customizer fields showing empty | Fixed | functions.php — added defaults + transport:refresh to all footer/contact/header settings |
+| 13 | Header nav labels not editable by client | Fixed | Customizer travzo_nav_labels section + header.php wired |
+| 14 | Blog page showing raw content (no home.php) | Fixed | Created home.php — WordPress blog index template |
+| 15 | Blog page needs Posts page set in Reading settings | Documented | See Blog Page Setup section above |
+| 16 | Mega menu showing same packages across all types (LIKE vs =) | Fixed | header.php — compare changed to = for all 5 menus |
+| 17 | Mobile drawer had hardcoded destination lists | Fixed | header.php — dynamic WP_Query for all 5 accordion panels |
+| 18 | Why Choose Us was customizer textarea (error-prone) | Fixed | Moved to meta box repeater UI with icon/title/desc fields |
+| 19 | Stats Bar was in customizer (inconvenient) | Fixed | Moved to meta box repeater UI with number/label/sublabel fields |
+| 20 | About Snippet was in customizer | Fixed | Moved to meta box with individual fields + image upload + key points textarea |
+| 21 | Hero Section was in customizer | Fixed | Moved to meta box with text fields + image upload, nl2br for heading |
+| 22 | Contact Section text was hardcoded + customizer | Fixed | Moved text to meta box; form ID stays in Customizer → WPForms |
 
 ## Deployment
 - Hosting: Hostinger WordPress

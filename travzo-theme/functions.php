@@ -47,6 +47,7 @@ function travzo_theme_setup() {
     register_nav_menus( [
         'primary-menu' => __( 'Primary Menu', 'travzo' ),
         'footer-menu'  => __( 'Footer Menu', 'travzo' ),
+        'footer-legal' => __( 'Footer Legal Links', 'travzo' ),
     ] );
 }
 add_action( 'after_setup_theme', 'travzo_theme_setup' );
@@ -139,7 +140,7 @@ add_action( 'customize_register', function ( $wp_customize ) {
         'travzo_hours'    => 'Working Hours',
     ];
     foreach ( $contact_fields as $key => $label ) {
-        $wp_customize->add_setting( $key, [ 'default' => '', 'sanitize_callback' => 'sanitize_text_field' ] );
+        $wp_customize->add_setting( $key, [ 'default' => '', 'sanitize_callback' => 'sanitize_text_field', 'transport' => 'refresh' ] );
         $wp_customize->add_control( $key, [ 'label' => $label, 'section' => 'travzo_contact', 'type' => 'text' ] );
     }
 
@@ -166,6 +167,7 @@ add_action( 'customize_register', function ( $wp_customize ) {
     $wp_customize->add_setting( 'travzo_utility_text', [
         'default'           => "Tamil Nadu's Most Trusted Travel Partner",
         'sanitize_callback' => 'sanitize_text_field',
+        'transport'         => 'refresh',
     ] );
     $wp_customize->add_control( 'travzo_utility_text', [
         'label'   => 'Utility Bar Text',
@@ -178,75 +180,30 @@ add_action( 'customize_register', function ( $wp_customize ) {
         'title' => 'Footer Settings',
         'panel' => 'travzo_panel',
     ] );
-    $footer_fields = [
-        'travzo_footer_tagline'   => 'Footer Tagline',
-        'travzo_footer_address'   => 'Footer Address',
-        'travzo_footer_hours'     => 'Footer Hours',
-        'travzo_footer_copyright' => 'Copyright Text',
+    $footer_defaults = [
+        'travzo_footer_tagline'   => [ 'label' => 'Footer Tagline',   'default' => 'Your trusted travel partner for unforgettable journeys across India and the world.' ],
+        'travzo_footer_address'   => [ 'label' => 'Footer Address',   'default' => '123 Travel Street, Coimbatore, Tamil Nadu 641001' ],
+        'travzo_footer_hours'     => [ 'label' => 'Footer Hours',     'default' => 'Mon – Sat: 9:00 AM – 7:00 PM' ],
+        'travzo_footer_copyright'     => [ 'label' => 'Copyright Text',          'default' => '© 2026 Travzo Holidays. All Rights Reserved.' ],
+        'travzo_footer_col2_heading'  => [ 'label' => 'Column 2 Heading',         'default' => 'Quick Links' ],
+        'travzo_footer_col3_heading'  => [ 'label' => 'Column 3 Heading',         'default' => 'Our Packages' ],
+        'travzo_footer_col4_heading'  => [ 'label' => 'Column 4 Heading',         'default' => 'Contact Us' ],
+        'travzo_footer_whatsapp_text' => [ 'label' => 'WhatsApp Button Text',     'default' => 'Chat on WhatsApp' ],
     ];
-    foreach ( $footer_fields as $key => $label ) {
-        $wp_customize->add_setting( $key, [ 'default' => '', 'sanitize_callback' => 'sanitize_text_field' ] );
-        $wp_customize->add_control( $key, [ 'label' => $label, 'section' => 'travzo_footer', 'type' => 'text' ] );
+    foreach ( $footer_defaults as $key => $field ) {
+        $wp_customize->add_setting( $key, [
+            'default'           => $field['default'],
+            'sanitize_callback' => 'sanitize_text_field',
+            'transport'         => 'refresh',
+        ] );
+        $wp_customize->add_control( $key, [ 'label' => $field['label'], 'section' => 'travzo_footer', 'type' => 'text' ] );
     }
 
-    // ── SECTION: Homepage Hero ────────────────────────────────────────────────
-    $wp_customize->add_section( 'travzo_hero', [
-        'title' => 'Homepage - Hero Section',
-        'panel' => 'travzo_panel',
-    ] );
-    $hero_text_fields = [
-        'travzo_hero_badge'     => 'Badge Text',
-        'travzo_hero_heading'   => 'Main Heading',
-        'travzo_hero_subtext'   => 'Sub Text',
-        'travzo_hero_btn1_text' => 'Primary Button Text',
-        'travzo_hero_btn1_url'  => 'Primary Button URL',
-        'travzo_hero_btn2_text' => 'Secondary Button Text',
-        'travzo_hero_btn2_url'  => 'Secondary Button URL',
-    ];
-    foreach ( $hero_text_fields as $key => $label ) {
-        $wp_customize->add_setting( $key, [ 'default' => '', 'sanitize_callback' => 'sanitize_text_field' ] );
-        $wp_customize->add_control( $key, [ 'label' => $label, 'section' => 'travzo_hero', 'type' => 'text' ] );
-    }
-    $wp_customize->add_setting( 'travzo_hero_image', [ 'default' => '', 'sanitize_callback' => 'esc_url_raw' ] );
-    $wp_customize->add_control( new WP_Customize_Image_Control( $wp_customize, 'travzo_hero_image', [
-        'label'   => 'Hero Background Image',
-        'section' => 'travzo_hero',
-    ] ) );
+    // ── Homepage Hero (MOVED TO META BOX — see travzo_homepage_hero_cb) ──
 
-    // ── SECTION: Homepage Stats ───────────────────────────────────────────────
-    $wp_customize->add_section( 'travzo_stats', [
-        'title' => 'Homepage - Stats Bar',
-        'panel' => 'travzo_panel',
-    ] );
-    for ( $i = 1; $i <= 4; $i++ ) {
-        $wp_customize->add_setting( "travzo_stat_{$i}_number", [ 'default' => '', 'sanitize_callback' => 'sanitize_text_field' ] );
-        $wp_customize->add_control( "travzo_stat_{$i}_number", [ 'label' => "Stat {$i} Number (e.g. 500+)", 'section' => 'travzo_stats', 'type' => 'text' ] );
-        $wp_customize->add_setting( "travzo_stat_{$i}_label", [ 'default' => '', 'sanitize_callback' => 'sanitize_text_field' ] );
-        $wp_customize->add_control( "travzo_stat_{$i}_label", [ 'label' => "Stat {$i} Label (e.g. Happy Travellers)", 'section' => 'travzo_stats', 'type' => 'text' ] );
-    }
+    // ── Homepage Stats (MOVED TO META BOX — see travzo_homepage_stats_cb) ──
 
-    // ── SECTION: Homepage About Snippet ──────────────────────────────────────
-    $wp_customize->add_section( 'travzo_about_snippet', [
-        'title' => 'Homepage - About Snippet',
-        'panel' => 'travzo_panel',
-    ] );
-    $about_text_fields = [
-        'travzo_about_label'   => 'Section Label',
-        'travzo_about_heading' => 'Heading',
-        'travzo_about_text'    => 'Body Text',
-        'travzo_about_feat1'   => 'Feature 1',
-        'travzo_about_feat2'   => 'Feature 2',
-        'travzo_about_feat3'   => 'Feature 3',
-    ];
-    foreach ( $about_text_fields as $key => $label ) {
-        $wp_customize->add_setting( $key, [ 'default' => '', 'sanitize_callback' => 'sanitize_text_field' ] );
-        $wp_customize->add_control( $key, [ 'label' => $label, 'section' => 'travzo_about_snippet', 'type' => 'text' ] );
-    }
-    $wp_customize->add_setting( 'travzo_about_image', [ 'default' => '', 'sanitize_callback' => 'esc_url_raw' ] );
-    $wp_customize->add_control( new WP_Customize_Image_Control( $wp_customize, 'travzo_about_image', [
-        'label'   => 'About Section Image',
-        'section' => 'travzo_about_snippet',
-    ] ) );
+    // ── Homepage About Snippet (MOVED TO META BOX — see travzo_homepage_about_cb) ──
 
     // ── SECTION: Newsletter ───────────────────────────────────────────────────
     $wp_customize->add_section( 'travzo_newsletter', [
@@ -297,24 +254,60 @@ add_action( 'customize_register', function ( $wp_customize ) {
     }
 }, 20 );
 
-// ── Homepage – Why Choose Us ──────────────────────────────────────────────────
+// ── Homepage – Why Choose Us (MOVED TO META BOX — see travzo_homepage_whyus_cb) ──
+
+// ── Header – Navigation Labels & URLs ────────────────────────────────────────
 add_action( 'customize_register', function ( $wp_customize ) {
-    $wp_customize->add_section( 'travzo_why_us', [
-        'title' => 'Homepage – Why Choose Us',
-        'panel' => 'travzo_panel',
+    $wp_customize->add_section( 'travzo_nav_labels', [
+        'title'    => 'Header – Navigation Labels',
+        'panel'    => 'travzo_panel',
+        'priority' => 25,
     ] );
-    $wp_customize->add_setting( 'travzo_why_us_label',   [ 'default' => 'WHY TRAVZO',          'sanitize_callback' => 'sanitize_text_field' ] );
-    $wp_customize->add_control( 'travzo_why_us_label',   [ 'label' => 'Section Label',   'section' => 'travzo_why_us', 'type' => 'text' ] );
-    $wp_customize->add_setting( 'travzo_why_us_heading', [ 'default' => 'Why Travel With Us', 'sanitize_callback' => 'sanitize_text_field' ] );
-    $wp_customize->add_control( 'travzo_why_us_heading', [ 'label' => 'Section Heading', 'section' => 'travzo_why_us', 'type' => 'text' ] );
-    $wp_customize->add_setting( 'travzo_why_us_tiles', [ 'default' => '', 'sanitize_callback' => 'sanitize_textarea_field' ] );
-    $wp_customize->add_control( 'travzo_why_us_tiles', [
-        'label'       => 'Feature Tiles',
-        'description' => 'One tile per line. Format: Heading | Description (icon auto-assigned by order)',
-        'section'     => 'travzo_why_us',
-        'type'        => 'textarea',
-    ] );
-}, 30 );
+
+    $nav_label_fields = [
+        'travzo_nav_home'      => [ 'label' => 'Home Label',                'default' => 'Home' ],
+        'travzo_nav_group'     => [ 'label' => 'Group Tours Label',         'default' => 'Group Tours' ],
+        'travzo_nav_honeymoon' => [ 'label' => 'Honeymoon Label',           'default' => 'Honeymoon' ],
+        'travzo_nav_devotional'=> [ 'label' => 'Devotional Label',          'default' => 'Devotional' ],
+        'travzo_nav_wedding'   => [ 'label' => 'Destination Wedding Label', 'default' => 'Dest. Wedding' ],
+        'travzo_nav_solo'      => [ 'label' => 'Solo Trips Label',          'default' => 'Solo Trips' ],
+        'travzo_nav_blog'      => [ 'label' => 'Blog Label',                'default' => 'Blog' ],
+        'travzo_nav_about'     => [ 'label' => 'About Label',               'default' => 'About' ],
+        'travzo_nav_contact'   => [ 'label' => 'Contact Label',             'default' => 'Contact' ],
+        'travzo_nav_cta_text'  => [ 'label' => 'CTA Button Text',           'default' => 'Call Us Now' ],
+    ];
+    foreach ( $nav_label_fields as $key => $field ) {
+        $wp_customize->add_setting( $key, [
+            'default'           => $field['default'],
+            'sanitize_callback' => 'sanitize_text_field',
+            'transport'         => 'refresh',
+        ] );
+        $wp_customize->add_control( $key, [
+            'label'   => $field['label'],
+            'section' => 'travzo_nav_labels',
+            'type'    => 'text',
+        ] );
+    }
+
+    $nav_url_fields = [
+        'travzo_nav_home_url'    => [ 'label' => 'Home URL',    'default' => '/' ],
+        'travzo_nav_blog_url'    => [ 'label' => 'Blog URL',    'default' => '/blog' ],
+        'travzo_nav_about_url'   => [ 'label' => 'About URL',   'default' => '/about' ],
+        'travzo_nav_contact_url' => [ 'label' => 'Contact URL', 'default' => '/contact' ],
+    ];
+    foreach ( $nav_url_fields as $key => $field ) {
+        $wp_customize->add_setting( $key, [
+            'default'           => $field['default'],
+            'sanitize_callback' => 'esc_url_raw',
+            'transport'         => 'refresh',
+        ] );
+        $wp_customize->add_control( $key, [
+            'label'   => $field['label'],
+            'section' => 'travzo_nav_labels',
+            'type'    => 'url',
+        ] );
+    }
+} );
 
 // ── Homepage – Our Packages Section Labels (FIX 10) ──────────────────────────
 add_action( 'customize_register', function ( $wp_customize ) {
@@ -351,6 +344,47 @@ add_action( 'customize_register', function ( $wp_customize ) {
     }
 } );
 
+// ── About Page – Section Labels & CTA ────────────────────────────────────────
+add_action( 'customize_register', function ( $wp_customize ) {
+    $wp_customize->add_section( 'travzo_about_sections', [
+        'title' => 'About Page – Section Labels & CTA',
+        'panel' => 'travzo_panel',
+    ] );
+    $about_section_fields = [
+        'travzo_about_story_label'          => [ 'label' => 'Story – Section Label',          'default' => 'OUR STORY' ],
+        'travzo_about_story_heading'        => [ 'label' => 'Story – Heading',                'default' => 'Who We Are' ],
+        'travzo_about_whyus_label'          => [ 'label' => 'Why Us – Section Label',         'default' => 'WHY TRAVZO' ],
+        'travzo_about_whyus_heading'        => [ 'label' => 'Why Us – Heading',               'default' => 'Why Travel With Us' ],
+        'travzo_about_team_label'           => [ 'label' => 'Team – Section Label',           'default' => 'OUR PEOPLE' ],
+        'travzo_about_team_heading'         => [ 'label' => 'Team – Heading',                 'default' => 'Meet the Team' ],
+        'travzo_about_awards_label'         => [ 'label' => 'Awards – Section Label',         'default' => 'RECOGNITION' ],
+        'travzo_about_awards_heading'       => [ 'label' => 'Awards – Heading',               'default' => 'Awards & Achievements' ],
+        'travzo_about_accreditation_label'  => [ 'label' => 'Accreditation – Section Label',  'default' => 'TRUSTED BY' ],
+        'travzo_about_accreditation_heading'=> [ 'label' => 'Accreditation – Heading',        'default' => 'Our Accreditation Partners' ],
+        'travzo_about_testimonials_label'   => [ 'label' => 'Testimonials – Section Label',   'default' => 'HAPPY TRAVELLERS' ],
+        'travzo_about_testimonials_heading' => [ 'label' => 'Testimonials – Heading',         'default' => 'What Our Travellers Say' ],
+        'travzo_about_cta_heading'          => [ 'label' => 'CTA – Heading',                  'default' => 'Ready to Start Your Journey?' ],
+        'travzo_about_cta_description'      => [ 'label' => 'CTA – Description',              'default' => 'Let us help you create memories that last a lifetime' ],
+        'travzo_about_cta_btn1_text'        => [ 'label' => 'CTA – Button 1 Text',            'default' => 'Explore Packages' ],
+        'travzo_about_cta_btn1_url'         => [ 'label' => 'CTA – Button 1 URL',             'default' => '/packages' ],
+        'travzo_about_cta_btn2_text'        => [ 'label' => 'CTA – Button 2 Text',            'default' => 'Contact Us' ],
+        'travzo_about_cta_btn2_url'         => [ 'label' => 'CTA – Button 2 URL',             'default' => '/contact' ],
+    ];
+    foreach ( $about_section_fields as $key => $field ) {
+        $is_url = ( substr( $key, -4 ) === '_url' );
+        $wp_customize->add_setting( $key, [
+            'default'           => $field['default'],
+            'sanitize_callback' => $is_url ? 'sanitize_text_field' : 'sanitize_text_field',
+            'transport'         => 'refresh',
+        ] );
+        $wp_customize->add_control( $key, [
+            'label'   => $field['label'],
+            'section' => 'travzo_about_sections',
+            'type'    => 'text',
+        ] );
+    }
+} );
+
 // ── Header – Mega Menu View-All URLs + Nav note (FIX 5) ──────────────────────
 add_action( 'customize_register', function ( $wp_customize ) {
     // Note in Header Settings pointing to Appearance → Menus
@@ -378,23 +412,81 @@ add_action( 'customize_register', function ( $wp_customize ) {
         $wp_customize->add_setting( $key, [ 'default' => '', 'sanitize_callback' => 'esc_url_raw' ] );
         $wp_customize->add_control( $key, [ 'label' => $label, 'section' => 'travzo_mega_menu', 'type' => 'url' ] );
     }
+    // Column 1 heading labels (packages column) for each mega menu
+    $mega_heading_fields = [
+        'travzo_mega_group_col1_heading' => 'Group Tours – Packages Column Heading',
+        'travzo_mega_honey_col1_heading' => 'Honeymoon – Packages Column Heading',
+        'travzo_mega_devot_col1_heading' => 'Devotional – Packages Column Heading',
+        'travzo_mega_wed_col1_heading'   => 'Dest. Wedding – Packages Column Heading',
+        'travzo_mega_solo_col1_heading'  => 'Solo Trips – Packages Column Heading',
+    ];
+    $mega_heading_defaults = [
+        'travzo_mega_group_col1_heading' => 'Group Tours',
+        'travzo_mega_honey_col1_heading' => 'Honeymoon Packages',
+        'travzo_mega_devot_col1_heading' => 'Devotional Tours',
+        'travzo_mega_wed_col1_heading'   => 'Destination Weddings',
+        'travzo_mega_solo_col1_heading'  => 'Solo Trips',
+    ];
+    foreach ( $mega_heading_fields as $key => $label ) {
+        $wp_customize->add_setting( $key, [ 'default' => $mega_heading_defaults[ $key ], 'sanitize_callback' => 'sanitize_text_field', 'transport' => 'refresh' ] );
+        $wp_customize->add_control( $key, [ 'label' => $label, 'section' => 'travzo_mega_menu', 'type' => 'text' ] );
+    }
 } );
 
-// ── Homepage – Contact Section ────────────────────────────────────────────────
+// ── Header – Mega Menu Destination Content ────────────────────────────────────
 add_action( 'customize_register', function ( $wp_customize ) {
-    $wp_customize->add_section( 'travzo_contact_section', [
-        'title' => 'Homepage – Contact Section',
-        'panel' => 'travzo_panel',
+    $wp_customize->add_section( 'travzo_mega_content', [
+        'title'       => 'Header – Mega Menu Destinations',
+        'panel'       => 'travzo_panel',
+        'priority'    => 31,
+        'description' => 'Edit destination lists in header dropdowns. One item per line. Optional URL: Destination Name | https://yoursite.com/page',
     ] );
-    foreach ( [
-        'travzo_contact_label'   => 'Section Label',
-        'travzo_contact_heading' => 'Section Heading',
-        'travzo_contact_desc'    => 'Description',
-    ] as $key => $label ) {
-        $wp_customize->add_setting( $key, [ 'default' => '', 'sanitize_callback' => 'sanitize_text_field' ] );
-        $wp_customize->add_control( $key, [ 'label' => $label, 'section' => 'travzo_contact_section', 'type' => 'text' ] );
+
+    $mega_fields = [
+        'travzo_mega_group_col1_heading'     => [ 'label' => 'Group Tours – Col 1 Heading',       'default' => 'Featured Packages',    'type' => 'text' ],
+        'travzo_mega_group_col2_heading'     => [ 'label' => 'Group Tours – Col 2 Heading',       'default' => 'South India',          'type' => 'text' ],
+        'travzo_mega_group_col2_items'       => [ 'label' => 'Group Tours – Col 2 Items',         'default' => "Kerala Backwaters\nCoorg, Karnataka\nAndaman Islands\nOoty & Kodaikanal\nPondicherry\nGoa", 'type' => 'textarea' ],
+        'travzo_mega_group_col3_heading'     => [ 'label' => 'Group Tours – Col 3 Heading',       'default' => 'North India',          'type' => 'text' ],
+        'travzo_mega_group_col3_items'       => [ 'label' => 'Group Tours – Col 3 Items',         'default' => "Kashmir\nHimachal Pradesh\nUttarakhand\nRajasthan\nDelhi Agra Jaipur\nLadakh", 'type' => 'textarea' ],
+        'travzo_mega_group_col4_heading'     => [ 'label' => 'Group Tours – Col 4 Heading',       'default' => 'International',        'type' => 'text' ],
+        'travzo_mega_group_col4_items'       => [ 'label' => 'Group Tours – Col 4 Items',         'default' => "Thailand\nSingapore & Malaysia\nDubai & UAE\nSri Lanka\nEurope\nAustralia", 'type' => 'textarea' ],
+
+        'travzo_mega_honeymoon_col2_heading' => [ 'label' => 'Honeymoon – Col 2 Heading',         'default' => 'India',                'type' => 'text' ],
+        'travzo_mega_honeymoon_col2_items'   => [ 'label' => 'Honeymoon – Col 2 Items',           'default' => "Kerala\nGoa\nAndaman\nKashmir\nOoty & Kodaikanal\nManali", 'type' => 'textarea' ],
+        'travzo_mega_honeymoon_col3_heading' => [ 'label' => 'Honeymoon – Col 3 Heading',         'default' => 'Asia & Islands',       'type' => 'text' ],
+        'travzo_mega_honeymoon_col3_items'   => [ 'label' => 'Honeymoon – Col 3 Items',           'default' => "Maldives\nBali\nThailand\nSri Lanka\nMauritius\nSeychelles", 'type' => 'textarea' ],
+        'travzo_mega_honeymoon_col4_heading' => [ 'label' => 'Honeymoon – Col 4 Heading',         'default' => 'Europe & Others',      'type' => 'text' ],
+        'travzo_mega_honeymoon_col4_items'   => [ 'label' => 'Honeymoon – Col 4 Items',           'default' => "Paris\nSwitzerland\nItaly\nGreece\nDubai\nSpain", 'type' => 'textarea' ],
+
+        'travzo_mega_devotional_col2_heading'=> [ 'label' => 'Devotional – Col 2 Heading',        'default' => 'South India',          'type' => 'text' ],
+        'travzo_mega_devotional_col2_items'  => [ 'label' => 'Devotional – Col 2 Items',          'default' => "Tirupati\nRameshwaram\nMadurai\nSabarimala\nKanchipuram\nKashi Yatra", 'type' => 'textarea' ],
+        'travzo_mega_devotional_col3_heading'=> [ 'label' => 'Devotional – Col 3 Heading',        'default' => 'North India',          'type' => 'text' ],
+        'travzo_mega_devotional_col3_items'  => [ 'label' => 'Devotional – Col 3 Items',          'default' => "Varanasi\nHaridwar\nRishikesh\nChar Dham\nAyodhya\nShirdi", 'type' => 'textarea' ],
+
+        'travzo_mega_wedding_col2_heading'   => [ 'label' => 'Dest. Wedding – Col 2 Heading',     'default' => 'India',                'type' => 'text' ],
+        'travzo_mega_wedding_col2_items'     => [ 'label' => 'Dest. Wedding – Col 2 Items',       'default' => "Rajasthan\nGoa\nKerala\nUdaipur\nJaipur\nAndaman", 'type' => 'textarea' ],
+        'travzo_mega_wedding_col3_heading'   => [ 'label' => 'Dest. Wedding – Col 3 Heading',     'default' => 'International',        'type' => 'text' ],
+        'travzo_mega_wedding_col3_items'     => [ 'label' => 'Dest. Wedding – Col 3 Items',       'default' => "Bali\nThailand\nMaldives\nSri Lanka\nMalaysia\nDubai", 'type' => 'textarea' ],
+
+        'travzo_mega_solo_col2_heading'      => [ 'label' => 'Solo Trips – Col 2 Heading',        'default' => 'Popular Destinations', 'type' => 'text' ],
+        'travzo_mega_solo_col2_items'        => [ 'label' => 'Solo Trips – Col 2 Items',          'default' => "Solo Kerala\nSolo Himachal\nSolo Northeast\nSolo Bali\nSolo Thailand\nSolo Europe", 'type' => 'textarea' ],
+    ];
+
+    foreach ( $mega_fields as $key => $field ) {
+        $wp_customize->add_setting( $key, [
+            'default'           => $field['default'],
+            'sanitize_callback' => $field['type'] === 'textarea' ? 'sanitize_textarea_field' : 'sanitize_text_field',
+            'transport'         => 'refresh',
+        ] );
+        $wp_customize->add_control( $key, [
+            'label'   => $field['label'],
+            'section' => 'travzo_mega_content',
+            'type'    => $field['type'],
+        ] );
     }
-}, 40 );
+} );
+
+// ── Homepage – Contact Section (MOVED TO META BOX — see travzo_homepage_contact_cb) ──
 
 // ── Page Hero Sections ────────────────────────────────────────────────────────
 add_action( 'customize_register', function ( $wp_customize ) {
@@ -498,6 +590,44 @@ add_action( 'customize_register', function ( $wp_customize ) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 /**
+ * Render a mega menu destination column from customizer textarea fields.
+ * Each line in the textarea is one item. Optional pipe separator for URL:
+ *   Destination Name | https://example.com/page
+ *
+ * @param string $heading_key   Customizer key for the column heading.
+ * @param string $items_key     Customizer key for the newline-separated items textarea.
+ * @param string $view_all_url  Optional View All link URL.
+ * @param string $view_all_text Optional View All link text.
+ */
+function travzo_render_mega_col( $heading_key, $items_key, $view_all_url = '', $view_all_text = '' ) {
+    $heading   = travzo_get( $heading_key, '' );
+    $items_raw = travzo_get( $items_key, '' );
+
+    echo '<div class="mega-col">';
+    if ( $heading ) {
+        echo '<h4 class="mega-col__heading">' . esc_html( $heading ) . '</h4>';
+    }
+    echo '<ul>';
+
+    $lines = array_filter( array_map( 'trim', explode( "\n", $items_raw ) ) );
+    foreach ( $lines as $line ) {
+        $parts = array_map( 'trim', explode( '|', $line, 2 ) );
+        $name  = $parts[0] ?? '';
+        $url   = ! empty( $parts[1] ) ? esc_url( $parts[1] ) : '#';
+        if ( $name ) {
+            echo '<li><a href="' . $url . '">' . esc_html( $name ) . '</a></li>';
+        }
+    }
+
+    if ( $view_all_url && $view_all_text ) {
+        echo '<li class="mega-viewmore"><a href="' . esc_url( $view_all_url ) . '">' . esc_html( $view_all_text ) . '</a></li>';
+    }
+
+    echo '</ul>';
+    echo '</div>';
+}
+
+/**
  * Get a Customizer setting value with optional fallback.
  */
 function travzo_get( $key, $fallback = '' ) {
@@ -526,20 +656,6 @@ function travzo_parse_lines( $text, $num_cols = 2 ) {
         $result[] = $parts;
     }
     return $result;
-}
-
-/**
- * Get hero data for inner page templates.
- *
- * @param int $post_id
- * @return array { image, heading, subtext }
- */
-function travzo_get_hero( $post_id ) {
-    return [
-        'image'   => get_post_meta( $post_id, '_hero_image',   true ),
-        'heading' => get_post_meta( $post_id, '_hero_heading', true ),
-        'subtext' => get_post_meta( $post_id, '_hero_subtext', true ),
-    ];
 }
 
 /**
@@ -699,7 +815,11 @@ add_action( 'save_post_package', function ( $post_id ) {
 // META BOXES – PAGE TEMPLATES
 // ══════════════════════════════════════════════════════════════════════════════
 add_action( 'add_meta_boxes', function () {
-    add_meta_box( 'travzo_page_hero',             'Page Hero Section',                      'travzo_page_hero_cb',             'page', 'normal', 'high' );
+    add_meta_box( 'travzo_homepage_hero',          'Homepage – Hero Section',                 'travzo_homepage_hero_cb',         'page', 'normal', 'high' );
+    add_meta_box( 'travzo_homepage_about',         'Homepage – About Us',                     'travzo_homepage_about_cb',        'page', 'normal', 'default' );
+    add_meta_box( 'travzo_homepage_stats',         'Homepage – Stats Bar',                    'travzo_homepage_stats_cb',        'page', 'normal', 'default' );
+    add_meta_box( 'travzo_homepage_whyus',         'Homepage – Why Choose Us',                'travzo_homepage_whyus_cb',        'page', 'normal', 'default' );
+    add_meta_box( 'travzo_homepage_contact',       'Homepage – Contact Section',              'travzo_homepage_contact_cb',      'page', 'normal', 'default' );
     add_meta_box( 'travzo_homepage_testimonials', 'Homepage – Testimonials',                 'travzo_homepage_testimonials_cb', 'page', 'normal', 'default' );
     add_meta_box( 'travzo_homepage_tiles',        'Homepage – Package Tiles',                'travzo_homepage_tiles_cb',        'page', 'normal', 'default' );
     add_meta_box( 'travzo_about_content',         'About Page Content',                      'travzo_about_content_cb',         'page', 'normal', 'high' );
@@ -715,9 +835,12 @@ add_action( 'do_meta_boxes', function () {
 
     $template  = get_page_template_slug( $post->ID );
     $is_front  = ( (int) $post->ID === (int) get_option( 'page_on_front' ) );
-    $is_inner  = in_array( $template, [ 'page-about.php', 'page-contact.php', 'page-faq.php', 'page-media.php' ], true );
-
     if ( ! $is_front ) {
+        remove_meta_box( 'travzo_homepage_hero',         'page', 'normal' );
+        remove_meta_box( 'travzo_homepage_about',        'page', 'normal' );
+        remove_meta_box( 'travzo_homepage_stats',        'page', 'normal' );
+        remove_meta_box( 'travzo_homepage_whyus',        'page', 'normal' );
+        remove_meta_box( 'travzo_homepage_contact',      'page', 'normal' );
         remove_meta_box( 'travzo_homepage_testimonials', 'page', 'normal' );
         remove_meta_box( 'travzo_homepage_tiles',        'page', 'normal' );
     }
@@ -733,50 +856,547 @@ add_action( 'do_meta_boxes', function () {
     if ( $template !== 'page-media.php' ) {
         remove_meta_box( 'travzo_media_content', 'page', 'normal' );
     }
-    if ( $is_front || ! $is_inner ) {
-        remove_meta_box( 'travzo_page_hero', 'page', 'normal' );
-    }
 } );
 
-function travzo_page_hero_cb( $post ) {
-    wp_nonce_field( 'travzo_page_save', 'travzo_page_nonce' );
-    $hero_image   = get_post_meta( $post->ID, '_hero_image',   true );
-    $hero_heading = get_post_meta( $post->ID, '_hero_heading', true );
-    $hero_subtext = get_post_meta( $post->ID, '_hero_subtext', true );
-    ?>
-    <p>
-        <label style="font-weight:600;display:block;margin-bottom:4px">Hero Background Image URL</label>
-        <input type="url" name="_hero_image" value="<?php echo esc_attr( $hero_image ); ?>"
-               placeholder="https://… paste image URL or use Upload" style="width:calc(100% - 110px);margin-right:8px">
-        <a href="#" onclick="travzoMediaUpload('_hero_image');return false;" class="button">Upload Image</a>
-    </p>
-    <p>
-        <label style="font-weight:600;display:block;margin-bottom:4px">Page Heading</label>
-        <input type="text" name="_hero_heading" value="<?php echo esc_attr( $hero_heading ); ?>" style="width:100%">
-    </p>
-    <p>
-        <label style="font-weight:600;display:block;margin-bottom:4px">Page Subtext</label>
-        <input type="text" name="_hero_subtext" value="<?php echo esc_attr( $hero_subtext ); ?>" style="width:100%">
-    </p>
-    <script>
-    function travzoMediaUpload(fieldName) {
-        var frame = wp.media({ title: 'Select Image', button: { text: 'Use Image' }, multiple: false });
-        frame.on('select', function () {
-            var att = frame.state().get('selection').first().toJSON();
-            document.querySelector('input[name="' + fieldName + '"]').value = att.url;
-        });
-        frame.open();
+function travzo_homepage_hero_cb( $post ) {
+    $badge     = get_post_meta( $post->ID, '_homepage_hero_badge', true );
+    $heading   = get_post_meta( $post->ID, '_homepage_hero_heading', true );
+    $subtext   = get_post_meta( $post->ID, '_homepage_hero_subtext', true );
+    $btn1_text = get_post_meta( $post->ID, '_homepage_hero_btn1_text', true );
+    $btn1_url  = get_post_meta( $post->ID, '_homepage_hero_btn1_url', true );
+    $btn2_text = get_post_meta( $post->ID, '_homepage_hero_btn2_text', true );
+    $btn2_url  = get_post_meta( $post->ID, '_homepage_hero_btn2_url', true );
+    $image     = get_post_meta( $post->ID, '_homepage_hero_image', true );
+
+    // Backward compat: pull old customizer values
+    if ( '' === $badge && '' === $heading && '' === $subtext ) {
+        $badge     = get_theme_mod( 'travzo_hero_badge', '' );
+        $heading   = get_theme_mod( 'travzo_hero_heading', '' );
+        $subtext   = get_theme_mod( 'travzo_hero_subtext', '' );
+        $btn1_text = $btn1_text ?: get_theme_mod( 'travzo_hero_btn1_text', '' );
+        $btn1_url  = $btn1_url  ?: get_theme_mod( 'travzo_hero_btn1_url', '' );
+        $btn2_text = $btn2_text ?: get_theme_mod( 'travzo_hero_btn2_text', '' );
+        $btn2_url  = $btn2_url  ?: get_theme_mod( 'travzo_hero_btn2_url', '' );
+        $image     = $image     ?: get_theme_mod( 'travzo_hero_image', '' );
     }
-    </script>
-    <?php
+
+    // Defaults
+    if ( ! $badge )     $badge     = 'Trusted by 500+ Happy Travellers';
+    if ( ! $heading )   $heading   = 'Discover the World With Travzo Holidays';
+    if ( ! $subtext )   $subtext   = 'Handcrafted itineraries for every kind of traveller.';
+    if ( ! $btn1_text ) $btn1_text = 'EXPLORE PACKAGES';
+    if ( ! $btn1_url )  $btn1_url  = '/packages';
+    if ( ! $btn2_text ) $btn2_text = 'ENQUIRE NOW';
+    if ( ! $btn2_url )  $btn2_url  = '#contact';
+
+    wp_nonce_field( 'travzo_hero_home_save', 'travzo_hero_home_nonce' );
+
+    echo '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">';
+    echo '<div style="grid-column:1/-1"><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">BADGE TEXT</label>';
+    echo '<input type="text" name="_homepage_hero_badge" class="widefat" value="' . esc_attr( $badge ) . '" placeholder="Trusted by 500+ Happy Travellers"></div>';
+    echo '</div>';
+
+    echo '<div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">MAIN HEADING</label>';
+    echo '<textarea name="_homepage_hero_heading" class="widefat" rows="2" placeholder="Discover the World With Travzo Holidays">' . esc_textarea( $heading ) . '</textarea>';
+    echo '<p style="color:#999;font-size:11px;margin:4px 0 0">Line breaks are preserved on the frontend</p></div>';
+
+    echo '<div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">SUB TEXT</label>';
+    echo '<input type="text" name="_homepage_hero_subtext" class="widefat" value="' . esc_attr( $subtext ) . '" placeholder="Handcrafted itineraries for every kind of traveller."></div>';
+
+    echo '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">';
+    echo '<div><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">PRIMARY BUTTON TEXT</label>';
+    echo '<input type="text" name="_homepage_hero_btn1_text" class="widefat" value="' . esc_attr( $btn1_text ) . '" placeholder="EXPLORE PACKAGES"></div>';
+    echo '<div><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">PRIMARY BUTTON URL</label>';
+    echo '<input type="text" name="_homepage_hero_btn1_url" class="widefat" value="' . esc_attr( $btn1_url ) . '" placeholder="/packages"></div>';
+    echo '</div>';
+
+    echo '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">';
+    echo '<div><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">SECONDARY BUTTON TEXT</label>';
+    echo '<input type="text" name="_homepage_hero_btn2_text" class="widefat" value="' . esc_attr( $btn2_text ) . '" placeholder="ENQUIRE NOW"></div>';
+    echo '<div><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">SECONDARY BUTTON URL</label>';
+    echo '<input type="text" name="_homepage_hero_btn2_url" class="widefat" value="' . esc_attr( $btn2_url ) . '" placeholder="#contact"></div>';
+    echo '</div>';
+
+    echo '<div style="margin-bottom:8px"><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">HERO BACKGROUND IMAGE</label>';
+    echo '<div style="display:flex;gap:8px;align-items:flex-start">';
+    echo '<input type="url" name="_homepage_hero_image" id="hero-home-image-input" class="widefat" value="' . esc_attr( $image ) . '" placeholder="https://... background image URL" style="flex:1">';
+    echo '<button type="button" class="button" id="hero-home-upload-btn">Choose Image</button>';
+    echo '<button type="button" class="button" id="hero-home-remove-btn" style="color:#dc2626">Remove</button>';
+    echo '</div>';
+    if ( $image ) {
+        echo '<div id="hero-home-preview" style="margin-top:8px"><img src="' . esc_url( $image ) . '" style="max-width:300px;max-height:150px;border-radius:8px;border:1px solid #e0e0e0"></div>';
+    } else {
+        echo '<div id="hero-home-preview" style="margin-top:8px"></div>';
+    }
+    echo '</div>';
+
+    echo '<script>
+    jQuery(function($) {
+        $("#hero-home-upload-btn").on("click", function() {
+            var frame = wp.media({ title: "Select Hero Image", button: { text: "Use Image" }, multiple: false });
+            frame.on("select", function() {
+                var url = frame.state().get("selection").first().toJSON().url;
+                $("#hero-home-image-input").val(url);
+                $("#hero-home-preview").html(\'<img src="\' + url + \'" style="max-width:300px;max-height:150px;border-radius:8px;border:1px solid #e0e0e0">\');
+            });
+            frame.open();
+        });
+        $("#hero-home-remove-btn").on("click", function() {
+            $("#hero-home-image-input").val("");
+            $("#hero-home-preview").html("");
+        });
+    });
+    </script>';
+}
+
+function travzo_homepage_about_cb( $post ) {
+    $label     = get_post_meta( $post->ID, '_homepage_about_label', true );
+    $heading   = get_post_meta( $post->ID, '_homepage_about_heading', true );
+    $desc      = get_post_meta( $post->ID, '_homepage_about_description', true );
+    $keypoints = get_post_meta( $post->ID, '_homepage_about_keypoints', true );
+    $image     = get_post_meta( $post->ID, '_homepage_about_image', true );
+    $btn_text  = get_post_meta( $post->ID, '_homepage_about_btn_text', true );
+    $btn_url   = get_post_meta( $post->ID, '_homepage_about_btn_url', true );
+
+    // Backward compat: pull old customizer values
+    if ( '' === $label && '' === $heading && '' === $desc ) {
+        $label     = get_theme_mod( 'travzo_about_label', '' );
+        $heading   = get_theme_mod( 'travzo_about_heading', '' );
+        $desc      = get_theme_mod( 'travzo_about_text', '' );
+        $image     = $image ?: get_theme_mod( 'travzo_about_image', '' );
+        $feat1     = get_theme_mod( 'travzo_about_feat1', 'Handcrafted Itineraries' );
+        $feat2     = get_theme_mod( 'travzo_about_feat2', 'Best Price Guarantee' );
+        $feat3     = get_theme_mod( 'travzo_about_feat3', '24/7 Support' );
+        $kp_parts  = array_filter( [ $feat1, $feat2, $feat3 ] );
+        $keypoints = $keypoints ?: implode( "\n", $kp_parts );
+    }
+
+    // Defaults
+    if ( ! $label )     $label     = 'WHO WE ARE';
+    if ( ! $heading )   $heading   = 'Your Trusted Travel Partner';
+    if ( ! $desc )      $desc      = 'Travzo Holidays is a Coimbatore-based travel agency with over a decade of experience crafting unforgettable journeys. From serene backwater cruises in Kerala to sacred Char Dham pilgrimages, we design every itinerary with care, passion, and deep local knowledge — so you can travel with complete peace of mind.';
+    if ( ! $keypoints ) $keypoints = "Handcrafted Itineraries\nBest Price Guarantee\n24/7 Support";
+    if ( ! $btn_text )  $btn_text  = 'LEARN MORE ABOUT US';
+    if ( ! $btn_url )   $btn_url   = '/about';
+
+    wp_nonce_field( 'travzo_about_home_save', 'travzo_about_home_nonce' );
+
+    echo '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">';
+    echo '<div><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">SECTION LABEL</label>';
+    echo '<input type="text" name="_homepage_about_label" class="widefat" value="' . esc_attr( $label ) . '" placeholder="WHO WE ARE"></div>';
+    echo '<div><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">SECTION HEADING</label>';
+    echo '<input type="text" name="_homepage_about_heading" class="widefat" value="' . esc_attr( $heading ) . '" placeholder="Your Trusted Travel Partner"></div>';
+    echo '</div>';
+
+    echo '<div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">DESCRIPTION</label>';
+    echo '<textarea name="_homepage_about_description" class="widefat" rows="4" placeholder="About your company…">' . esc_textarea( $desc ) . '</textarea></div>';
+
+    echo '<div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">KEY POINTS</label>';
+    echo '<p style="color:#999;font-size:11px;margin:0 0 4px">One point per line (shown as checkmark list on the frontend)</p>';
+    echo '<textarea name="_homepage_about_keypoints" class="widefat" rows="4" placeholder="Handcrafted Itineraries&#10;Best Price Guarantee&#10;24/7 Support">' . esc_textarea( $keypoints ) . '</textarea></div>';
+
+    echo '<div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">SECTION IMAGE</label>';
+    echo '<div style="display:flex;gap:8px;align-items:flex-start">';
+    echo '<input type="url" name="_homepage_about_image" id="about-home-image-input" class="widefat" value="' . esc_attr( $image ) . '" placeholder="https://... image URL" style="flex:1">';
+    echo '<button type="button" class="button" id="about-home-upload-btn">Choose Image</button>';
+    echo '<button type="button" class="button" id="about-home-remove-btn" style="color:#dc2626">Remove</button>';
+    echo '</div>';
+    if ( $image ) {
+        echo '<div id="about-home-preview" style="margin-top:8px"><img src="' . esc_url( $image ) . '" style="max-width:200px;max-height:120px;border-radius:8px;border:1px solid #e0e0e0"></div>';
+    } else {
+        echo '<div id="about-home-preview" style="margin-top:8px"></div>';
+    }
+    echo '</div>';
+
+    echo '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">';
+    echo '<div><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">BUTTON TEXT</label>';
+    echo '<input type="text" name="_homepage_about_btn_text" class="widefat" value="' . esc_attr( $btn_text ) . '" placeholder="LEARN MORE ABOUT US"></div>';
+    echo '<div><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">BUTTON URL</label>';
+    echo '<input type="text" name="_homepage_about_btn_url" class="widefat" value="' . esc_attr( $btn_url ) . '" placeholder="/about"></div>';
+    echo '</div>';
+
+    echo '<script>
+    jQuery(function($) {
+        $("#about-home-upload-btn").on("click", function() {
+            var frame = wp.media({ title: "Select Image", button: { text: "Use Image" }, multiple: false });
+            frame.on("select", function() {
+                var url = frame.state().get("selection").first().toJSON().url;
+                $("#about-home-image-input").val(url);
+                $("#about-home-preview").html(\'<img src="\' + url + \'" style="max-width:200px;max-height:120px;border-radius:8px;border:1px solid #e0e0e0">\');
+            });
+            frame.open();
+        });
+        $("#about-home-remove-btn").on("click", function() {
+            $("#about-home-image-input").val("");
+            $("#about-home-preview").html("");
+        });
+    });
+    </script>';
+}
+
+function travzo_homepage_stats_cb( $post ) {
+    $raw = get_post_meta( $post->ID, '_homepage_stats', true );
+    $items = [];
+
+    if ( is_array( $raw ) && ! empty( $raw ) ) {
+        $items = $raw;
+    }
+
+    // Backward compat: pull old customizer values
+    if ( empty( $items ) ) {
+        $defaults = [
+            [ '500+', 'Happy Travellers',      'Memorable journeys created' ],
+            [ '50+',  'Destinations',           'Across India and abroad' ],
+            [ '10+',  'Years Experience',       'Of trusted travel expertise' ],
+            [ '100%', 'Customised Itineraries', 'Tailored to your needs' ],
+        ];
+        for ( $i = 1; $i <= 4; $i++ ) {
+            $num = get_theme_mod( "travzo_stat_{$i}_number", '' );
+            $lbl = get_theme_mod( "travzo_stat_{$i}_label", '' );
+            $sub = get_theme_mod( "travzo_stat_{$i}_description", '' );
+            if ( $num || $lbl ) {
+                $items[] = [
+                    'number'   => $num ?: $defaults[ $i - 1 ][0],
+                    'label'    => $lbl ?: $defaults[ $i - 1 ][1],
+                    'sublabel' => $sub ?: $defaults[ $i - 1 ][2],
+                ];
+            }
+        }
+    }
+
+    // Ultimate fallback
+    if ( empty( $items ) ) {
+        $items = [
+            [ 'number' => '500+', 'label' => 'Happy Travellers',      'sublabel' => 'Memorable journeys created' ],
+            [ 'number' => '50+',  'label' => 'Destinations',           'sublabel' => 'Across India and abroad' ],
+            [ 'number' => '10+',  'label' => 'Years Experience',       'sublabel' => 'Of trusted travel expertise' ],
+            [ 'number' => '100%', 'label' => 'Customised Itineraries', 'sublabel' => 'Tailored to your needs' ],
+        ];
+    }
+
+    wp_nonce_field( 'travzo_stats_save', 'travzo_stats_nonce' );
+    echo '<input type="hidden" id="travzo-stats-data" name="_homepage_stats_v2" value="' . esc_attr( wp_json_encode( $items ) ) . '">';
+    echo '<p style="color:#666;margin-bottom:16px">Add statistics for the homepage stats bar. Each item shows a number, label, and sublabel.</p>';
+    echo '<div id="travzo-stats-container">';
+
+    foreach ( $items as $i => $item ) {
+        $num = $i + 1;
+        echo '<div class="travzo-stat-row" style="position:relative;padding:16px;background:#f9f9f9;border:1px solid #e0e0e0;border-radius:8px;margin-bottom:10px">';
+        echo '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><strong style="color:#1A2A5E">#' . $num . '</strong>';
+        echo '<button type="button" class="button travzo-remove-stat" style="color:#dc2626;font-size:12px">&#x2715; Remove</button></div>';
+        echo '<div style="display:grid;grid-template-columns:120px 1fr 1fr;gap:10px">';
+        echo '<div><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">STAT NUMBER</label>';
+        echo '<input type="text" class="stat-number widefat" value="' . esc_attr( $item['number'] ?? '' ) . '" placeholder="500+"></div>';
+        echo '<div><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">STAT LABEL</label>';
+        echo '<input type="text" class="stat-label widefat" value="' . esc_attr( $item['label'] ?? '' ) . '" placeholder="Happy Travellers"></div>';
+        echo '<div><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">SUBLABEL</label>';
+        echo '<input type="text" class="stat-sublabel widefat" value="' . esc_attr( $item['sublabel'] ?? '' ) . '" placeholder="Memorable journeys created"></div>';
+        echo '</div></div>';
+    }
+
+    echo '</div>';
+    echo '<button type="button" id="travzo-add-stat" class="button button-primary" style="margin-top:12px">+ Add Stat</button>';
+
+    echo '<script>
+    jQuery(function($) {
+        function syncStats() {
+            var data = [];
+            $(".travzo-stat-row").each(function() {
+                var num = $(this).find(".stat-number").val() || "";
+                if (!num) return;
+                data.push({
+                    number:   num,
+                    label:    $(this).find(".stat-label").val() || "",
+                    sublabel: $(this).find(".stat-sublabel").val() || ""
+                });
+            });
+            $("#travzo-stats-data").val(JSON.stringify(data));
+        }
+        function renumberStats() {
+            $(".travzo-stat-row").each(function(i) {
+                $(this).find("strong").first().text("#" + (i + 1));
+            });
+        }
+        function makeStatRow(item) {
+            item = item || { number: "", label: "", sublabel: "" };
+            return \'<div class="travzo-stat-row" style="position:relative;padding:16px;background:#f9f9f9;border:1px solid #e0e0e0;border-radius:8px;margin-bottom:10px">\'
+                + \'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><strong style="color:#1A2A5E">#0</strong>\'
+                + \'<button type="button" class="button travzo-remove-stat" style="color:#dc2626;font-size:12px">&#x2715; Remove</button></div>\'
+                + \'<div style="display:grid;grid-template-columns:120px 1fr 1fr;gap:10px">\'
+                + \'<div><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">STAT NUMBER</label>\'
+                + \'<input type="text" class="stat-number widefat" value="\' + (item.number || "") + \'" placeholder="500+"></div>\'
+                + \'<div><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">STAT LABEL</label>\'
+                + \'<input type="text" class="stat-label widefat" value="\' + (item.label || "") + \'" placeholder="Happy Travellers"></div>\'
+                + \'<div><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">SUBLABEL</label>\'
+                + \'<input type="text" class="stat-sublabel widefat" value="\' + (item.sublabel || "") + \'" placeholder="Memorable journeys created"></div>\'
+                + \'</div></div>\';
+        }
+        $(document).on("click", ".travzo-remove-stat", function() {
+            $(this).closest(".travzo-stat-row").remove();
+            renumberStats();
+            syncStats();
+        });
+        $("#travzo-add-stat").on("click", function() {
+            $("#travzo-stats-container").append(makeStatRow());
+            renumberStats();
+            syncStats();
+        });
+        $(document).on("input change", ".stat-number, .stat-label, .stat-sublabel", syncStats);
+    });
+    </script>';
+}
+
+function travzo_homepage_whyus_cb( $post ) {
+    $raw = get_post_meta( $post->ID, '_homepage_whyus', true );
+    $data = is_array( $raw ) ? $raw : [];
+
+    // Backward compat: pull old customizer values on first load
+    if ( empty( $data ) ) {
+        $old_label   = get_theme_mod( 'travzo_why_us_label', '' );
+        $old_heading = get_theme_mod( 'travzo_why_us_heading', '' );
+        $old_tiles   = get_theme_mod( 'travzo_why_us_tiles', '' );
+        $tiles = [];
+        if ( ! empty( $old_tiles ) ) {
+            foreach ( explode( "\n", $old_tiles ) as $line ) {
+                $parts = array_map( 'trim', explode( '|', $line ) );
+                if ( ! empty( $parts[0] ) ) {
+                    $tiles[] = [ 'icon' => '', 'title' => $parts[0], 'desc' => $parts[1] ?? '' ];
+                }
+            }
+        }
+        $data = [
+            'label'   => $old_label ?: 'WHY TRAVZO',
+            'heading' => $old_heading ?: 'Why Travel With Us',
+            'tiles'   => $tiles,
+        ];
+    }
+
+    $label   = $data['label'] ?? 'WHY TRAVZO';
+    $heading = $data['heading'] ?? 'Why Travel With Us';
+    $tiles   = $data['tiles'] ?? [];
+
+    wp_nonce_field( 'travzo_whyus_save', 'travzo_whyus_nonce' );
+    echo '<input type="hidden" id="travzo-whyus-data" name="_homepage_whyus_v2" value="' . esc_attr( wp_json_encode( $data ) ) . '">';
+
+    echo '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">';
+    echo '<div><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">SECTION LABEL</label>';
+    echo '<input type="text" id="whyus-label" class="widefat" value="' . esc_attr( $label ) . '" placeholder="WHY TRAVZO"></div>';
+    echo '<div><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">SECTION HEADING</label>';
+    echo '<input type="text" id="whyus-heading" class="widefat" value="' . esc_attr( $heading ) . '" placeholder="Why Travel With Us"></div>';
+    echo '</div>';
+
+    echo '<p style="color:#666;margin-bottom:16px">Add features/benefits. Each card gets an icon (short text like a symbol/emoji), title, and description.</p>';
+    echo '<div id="travzo-whyus-container">';
+
+    foreach ( $tiles as $i => $item ) {
+        $num = $i + 1;
+        echo '<div class="travzo-whyus-row" style="position:relative;padding:16px;background:#f9f9f9;border:1px solid #e0e0e0;border-radius:8px;margin-bottom:10px">';
+        echo '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><strong style="color:#1A2A5E">#' . $num . '</strong>';
+        echo '<button type="button" class="button travzo-remove-whyus" style="color:#dc2626;font-size:12px">&#x2715; Remove</button></div>';
+        echo '<div style="display:grid;grid-template-columns:100px 1fr;gap:10px;margin-bottom:10px">';
+        echo '<div><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">ICON TEXT</label>';
+        echo '<input type="text" class="whyus-icon widefat" value="' . esc_attr( $item['icon'] ?? '' ) . '" placeholder="🧭"></div>';
+        echo '<div><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">TITLE</label>';
+        echo '<input type="text" class="whyus-title widefat" value="' . esc_attr( $item['title'] ?? '' ) . '" placeholder="Handcrafted Itineraries"></div>';
+        echo '</div>';
+        echo '<div><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">DESCRIPTION</label>';
+        echo '<textarea class="whyus-desc widefat" rows="2" placeholder="Explain this benefit…">' . esc_textarea( $item['desc'] ?? '' ) . '</textarea></div>';
+        echo '</div>';
+    }
+
+    echo '</div>';
+    echo '<button type="button" id="travzo-add-whyus" class="button button-primary" style="margin-top:12px">+ Add Feature</button>';
+
+    echo '<script>
+    jQuery(function($) {
+        function syncWhyUs() {
+            var tiles = [];
+            $(".travzo-whyus-row").each(function() {
+                var title = $(this).find(".whyus-title").val() || "";
+                if (!title) return;
+                tiles.push({
+                    icon:  $(this).find(".whyus-icon").val() || "",
+                    title: title,
+                    desc:  $(this).find(".whyus-desc").val() || ""
+                });
+            });
+            var data = {
+                label:   $("#whyus-label").val() || "",
+                heading: $("#whyus-heading").val() || "",
+                tiles:   tiles
+            };
+            $("#travzo-whyus-data").val(JSON.stringify(data));
+        }
+        function renumberWhyUs() {
+            $(".travzo-whyus-row").each(function(i) {
+                $(this).find("strong").first().text("#" + (i + 1));
+            });
+        }
+        function makeWhyUsRow(item) {
+            item = item || { icon: "", title: "", desc: "" };
+            return \'<div class="travzo-whyus-row" style="position:relative;padding:16px;background:#f9f9f9;border:1px solid #e0e0e0;border-radius:8px;margin-bottom:10px">\'
+                + \'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><strong style="color:#1A2A5E">#0</strong>\'
+                + \'<button type="button" class="button travzo-remove-whyus" style="color:#dc2626;font-size:12px">&#x2715; Remove</button></div>\'
+                + \'<div style="display:grid;grid-template-columns:100px 1fr;gap:10px;margin-bottom:10px">\'
+                + \'<div><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">ICON TEXT</label>\'
+                + \'<input type="text" class="whyus-icon widefat" value="\' + (item.icon || "") + \'" placeholder="🧭"></div>\'
+                + \'<div><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">TITLE</label>\'
+                + \'<input type="text" class="whyus-title widefat" value="\' + (item.title || "") + \'" placeholder="Handcrafted Itineraries"></div>\'
+                + \'</div>\'
+                + \'<div><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">DESCRIPTION</label>\'
+                + \'<textarea class="whyus-desc widefat" rows="2" placeholder="Explain this benefit…">\' + (item.desc || "") + \'</textarea></div>\'
+                + \'</div>\';
+        }
+        $(document).on("click", ".travzo-remove-whyus", function() {
+            $(this).closest(".travzo-whyus-row").remove();
+            renumberWhyUs();
+            syncWhyUs();
+        });
+        $("#travzo-add-whyus").on("click", function() {
+            $("#travzo-whyus-container").append(makeWhyUsRow());
+            renumberWhyUs();
+            syncWhyUs();
+        });
+        $(document).on("input change", ".whyus-icon, .whyus-title, .whyus-desc, #whyus-label, #whyus-heading", syncWhyUs);
+    });
+    </script>';
+}
+
+function travzo_homepage_contact_cb( $post ) {
+    $label   = get_post_meta( $post->ID, '_homepage_contact_label', true );
+    $heading = get_post_meta( $post->ID, '_homepage_contact_heading', true );
+    $desc    = get_post_meta( $post->ID, '_homepage_contact_description', true );
+    $hours   = get_post_meta( $post->ID, '_homepage_contact_hours', true );
+
+    // Backward compat: pull old customizer values
+    if ( '' === $label && '' === $heading && '' === $desc ) {
+        $label   = get_theme_mod( 'travzo_contact_label', '' );
+        $heading = get_theme_mod( 'travzo_contact_heading', '' );
+        $desc    = get_theme_mod( 'travzo_contact_desc', '' );
+    }
+
+    // Defaults
+    if ( ! $label )   $label   = 'GET IN TOUCH';
+    if ( ! $heading ) $heading = 'Plan Your Dream Trip';
+    if ( ! $desc )    $desc    = 'Talk to our travel experts and let us craft the perfect holiday for you. No obligation, just great ideas.';
+    if ( ! $hours )   $hours   = 'Mon – Sat: 9:00 AM – 7:00 PM';
+
+    wp_nonce_field( 'travzo_contact_home_save', 'travzo_contact_home_nonce' );
+
+    echo '<p style="color:#666;margin-bottom:16px">Text content for the homepage enquiry/contact section. The form itself is configured in Customizer → WPForms Integration.</p>';
+
+    echo '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">';
+    echo '<div><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">SECTION LABEL</label>';
+    echo '<input type="text" name="_homepage_contact_label" class="widefat" value="' . esc_attr( $label ) . '" placeholder="GET IN TOUCH"></div>';
+    echo '<div><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">SECTION HEADING</label>';
+    echo '<input type="text" name="_homepage_contact_heading" class="widefat" value="' . esc_attr( $heading ) . '" placeholder="Plan Your Dream Trip"></div>';
+    echo '</div>';
+
+    echo '<div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">DESCRIPTION</label>';
+    echo '<textarea name="_homepage_contact_description" class="widefat" rows="3" placeholder="Talk to our travel experts…">' . esc_textarea( $desc ) . '</textarea></div>';
+
+    echo '<div><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">WORKING HOURS</label>';
+    echo '<input type="text" name="_homepage_contact_hours" class="widefat" value="' . esc_attr( $hours ) . '" placeholder="Mon – Sat: 9:00 AM – 7:00 PM"></div>';
 }
 
 function travzo_homepage_testimonials_cb( $post ) {
-    $val = get_post_meta( $post->ID, '_testimonials', true );
-    echo '<p><label style="font-weight:600;display:block;margin-bottom:4px">Testimonials</label>';
-    echo '<small style="color:#666;display:block;margin-bottom:8px">One testimonial per line. Format: <strong>Customer Name | Trip Taken | Quote text</strong><br>';
-    echo 'Example: Priya &amp; Arjun | Maldives Honeymoon | Travzo made our trip magical!</small>';
-    echo '<textarea name="_testimonials" rows="8" style="width:100%">' . esc_textarea( $val ) . '</textarea></p>';
+    $raw = get_post_meta( $post->ID, '_testimonials', true );
+
+    // Backward compat: convert old pipe-separated text to array
+    $items = [];
+    if ( is_array( $raw ) ) {
+        $items = $raw;
+    } elseif ( is_string( $raw ) && '' !== trim( $raw ) ) {
+        foreach ( explode( "\n", $raw ) as $line ) {
+            $parts = array_map( 'trim', explode( '|', $line ) );
+            if ( ! empty( $parts[0] ) ) {
+                $items[] = [
+                    'name'   => $parts[0] ?? '',
+                    'trip'   => $parts[1] ?? '',
+                    'quote'  => $parts[2] ?? '',
+                    'rating' => 5,
+                ];
+            }
+        }
+    }
+
+    wp_nonce_field( 'travzo_testimonials_save', 'travzo_testimonials_nonce' );
+    echo '<input type="hidden" id="travzo-testimonials-data" name="_testimonials_v2" value="' . esc_attr( wp_json_encode( $items ) ) . '">';
+    echo '<p style="color:#666;margin-bottom:16px">Add customer testimonials. Each card has a name, trip, quote and star rating.</p>';
+    echo '<div id="travzo-testimonials-container">';
+
+    foreach ( $items as $i => $item ) {
+        $num = $i + 1;
+        echo '<div class="travzo-testimonial-row" style="position:relative;padding:16px;background:#f9f9f9;border:1px solid #e0e0e0;border-radius:8px;margin-bottom:10px">';
+        echo '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><strong style="color:#1A2A5E">#' . $num . '</strong>';
+        echo '<button type="button" class="button travzo-remove-testimonial" style="color:#dc2626;font-size:12px">&#x2715; Remove</button></div>';
+        echo '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">';
+        echo '<div><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">CUSTOMER NAME</label>';
+        echo '<input type="text" class="testi-name widefat" value="' . esc_attr( $item['name'] ?? '' ) . '" placeholder="Priya & Arjun Nair"></div>';
+        echo '<div><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">TRIP / PACKAGE NAME</label>';
+        echo '<input type="text" class="testi-trip widefat" value="' . esc_attr( $item['trip'] ?? '' ) . '" placeholder="Kashmir Honeymoon – 7 Days"></div>';
+        echo '</div>';
+        echo '<div style="margin-bottom:10px"><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">QUOTE</label>';
+        echo '<textarea class="testi-quote widefat" rows="3" placeholder="Their experience in their own words…">' . esc_textarea( $item['quote'] ?? '' ) . '</textarea></div>';
+        echo '<div><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">STAR RATING (1-5)</label>';
+        echo '<input type="number" class="testi-rating" min="1" max="5" value="' . esc_attr( $item['rating'] ?? 5 ) . '" style="width:70px"></div>';
+        echo '</div>';
+    }
+
+    echo '</div>';
+    echo '<button type="button" id="travzo-add-testimonial" class="button button-primary" style="margin-top:12px">+ Add Testimonial</button>';
+
+    echo '<script>
+    jQuery(function($) {
+        function syncTestimonials() {
+            var data = [];
+            $(".travzo-testimonial-row").each(function() {
+                var name = $(this).find(".testi-name").val() || "";
+                if (!name) return;
+                data.push({
+                    name:   name,
+                    trip:   $(this).find(".testi-trip").val() || "",
+                    quote:  $(this).find(".testi-quote").val() || "",
+                    rating: parseInt($(this).find(".testi-rating").val()) || 5
+                });
+            });
+            $("#travzo-testimonials-data").val(JSON.stringify(data));
+        }
+        function renumber() {
+            $(".travzo-testimonial-row").each(function(i) {
+                $(this).find("strong").first().text("#" + (i + 1));
+            });
+        }
+        function makeRow(item) {
+            item = item || { name: "", trip: "", quote: "", rating: 5 };
+            return \'<div class="travzo-testimonial-row" style="position:relative;padding:16px;background:#f9f9f9;border:1px solid #e0e0e0;border-radius:8px;margin-bottom:10px">\'
+                + \'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><strong style="color:#1A2A5E">#0</strong>\'
+                + \'<button type="button" class="button travzo-remove-testimonial" style="color:#dc2626;font-size:12px">&#x2715; Remove</button></div>\'
+                + \'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">\'
+                + \'<div><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">CUSTOMER NAME</label>\'
+                + \'<input type="text" class="testi-name widefat" value="\' + (item.name || "") + \'" placeholder="Priya &amp; Arjun Nair"></div>\'
+                + \'<div><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">TRIP / PACKAGE NAME</label>\'
+                + \'<input type="text" class="testi-trip widefat" value="\' + (item.trip || "") + \'" placeholder="Kashmir Honeymoon – 7 Days"></div>\'
+                + \'</div>\'
+                + \'<div style="margin-bottom:10px"><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">QUOTE</label>\'
+                + \'<textarea class="testi-quote widefat" rows="3" placeholder="Their experience in their own words…">\' + (item.quote || "") + \'</textarea></div>\'
+                + \'<div><label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">STAR RATING (1-5)</label>\'
+                + \'<input type="number" class="testi-rating" min="1" max="5" value="\' + (item.rating || 5) + \'" style="width:70px"></div>\'
+                + \'</div>\';
+        }
+        $(document).on("click", ".travzo-remove-testimonial", function() {
+            $(this).closest(".travzo-testimonial-row").remove();
+            renumber();
+            syncTestimonials();
+        });
+        $("#travzo-add-testimonial").on("click", function() {
+            $("#travzo-testimonials-container").append(makeRow());
+            renumber();
+            syncTestimonials();
+        });
+        $(document).on("input change", ".testi-name, .testi-trip, .testi-quote, .testi-rating", syncTestimonials);
+    });
+    </script>';
 }
 
 function travzo_homepage_tiles_cb( $post ) {
@@ -941,21 +1561,21 @@ function travzo_media_content_cb( $post ) {
 
 // Save all page meta
 add_action( 'save_post_page', function ( $post_id ) {
-    if ( ! isset( $_POST['travzo_page_nonce'] ) ) return;
-    if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['travzo_page_nonce'] ) ), 'travzo_page_save' ) ) return;
     if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
 
-    $page_fields = [
-        '_hero_image', '_hero_heading', '_hero_subtext',
-        '_testimonials',
-        '_about_story_heading', '_about_story_text', '_about_story_image',
-        '_about_team', '_about_awards', '_about_accreditations',
-        '_branches', '_faqs',
-        '_media_videos', '_media_press', '_media_awards',
-    ];
-    foreach ( $page_fields as $field ) {
-        if ( isset( $_POST[ $field ] ) ) {
-            update_post_meta( $post_id, $field, sanitize_textarea_field( wp_unslash( $_POST[ $field ] ) ) );
+    // Save generic page fields (About, Contact, FAQ, Media) — guarded by their own nonce
+    if ( isset( $_POST['travzo_page_nonce'] ) &&
+         wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['travzo_page_nonce'] ) ), 'travzo_page_save' ) ) {
+        $page_fields = [
+            '_about_story_heading', '_about_story_text', '_about_story_image',
+            '_about_team', '_about_awards', '_about_accreditations',
+            '_branches', '_faqs',
+            '_media_videos', '_media_press', '_media_awards',
+        ];
+        foreach ( $page_fields as $field ) {
+            if ( isset( $_POST[ $field ] ) ) {
+                update_post_meta( $post_id, $field, sanitize_textarea_field( wp_unslash( $_POST[ $field ] ) ) );
+            }
         }
     }
 
@@ -978,6 +1598,135 @@ add_action( 'save_post_page', function ( $post_id ) {
             ];
         }
         update_post_meta( $post_id, '_package_tiles_v2', $tiles_v2 );
+    }
+
+    // Save testimonials repeater (_testimonials as serialized array)
+    if ( isset( $_POST['travzo_testimonials_nonce'] ) &&
+         wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['travzo_testimonials_nonce'] ) ), 'travzo_testimonials_save' ) ) {
+        $json_raw = isset( $_POST['_testimonials_v2'] ) ? wp_unslash( $_POST['_testimonials_v2'] ) : '[]';
+        $decoded  = json_decode( $json_raw, true );
+        $clean    = [];
+        if ( is_array( $decoded ) ) {
+            foreach ( $decoded as $item ) {
+                $name = sanitize_text_field( $item['name'] ?? '' );
+                if ( '' === trim( $name ) ) {
+                    continue;
+                }
+                $clean[] = [
+                    'name'   => $name,
+                    'trip'   => sanitize_text_field( $item['trip'] ?? '' ),
+                    'quote'  => sanitize_textarea_field( $item['quote'] ?? '' ),
+                    'rating' => max( 1, min( 5, intval( $item['rating'] ?? 5 ) ) ),
+                ];
+            }
+        }
+        update_post_meta( $post_id, '_testimonials', $clean );
+    }
+
+    // Save Why Choose Us repeater (_homepage_whyus as serialized array)
+    if ( isset( $_POST['travzo_whyus_nonce'] ) &&
+         wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['travzo_whyus_nonce'] ) ), 'travzo_whyus_save' ) ) {
+        $json_raw = isset( $_POST['_homepage_whyus_v2'] ) ? wp_unslash( $_POST['_homepage_whyus_v2'] ) : '{}';
+        $decoded  = json_decode( $json_raw, true );
+        $clean_wu = [
+            'label'   => sanitize_text_field( $decoded['label'] ?? '' ),
+            'heading' => sanitize_text_field( $decoded['heading'] ?? '' ),
+            'tiles'   => [],
+        ];
+        if ( ! empty( $decoded['tiles'] ) && is_array( $decoded['tiles'] ) ) {
+            foreach ( $decoded['tiles'] as $tile ) {
+                $title = sanitize_text_field( $tile['title'] ?? '' );
+                if ( '' === trim( $title ) ) {
+                    continue;
+                }
+                $clean_wu['tiles'][] = [
+                    'icon'  => sanitize_text_field( $tile['icon'] ?? '' ),
+                    'title' => $title,
+                    'desc'  => sanitize_textarea_field( $tile['desc'] ?? '' ),
+                ];
+            }
+        }
+        update_post_meta( $post_id, '_homepage_whyus', $clean_wu );
+    }
+
+    // Save Stats Bar repeater (_homepage_stats as serialized array)
+    if ( isset( $_POST['travzo_stats_nonce'] ) &&
+         wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['travzo_stats_nonce'] ) ), 'travzo_stats_save' ) ) {
+        $json_raw = isset( $_POST['_homepage_stats_v2'] ) ? wp_unslash( $_POST['_homepage_stats_v2'] ) : '[]';
+        $decoded  = json_decode( $json_raw, true );
+        $clean_stats = [];
+        if ( is_array( $decoded ) ) {
+            foreach ( $decoded as $item ) {
+                $number = sanitize_text_field( $item['number'] ?? '' );
+                if ( '' === trim( $number ) ) {
+                    continue;
+                }
+                $clean_stats[] = [
+                    'number'   => $number,
+                    'label'    => sanitize_text_field( $item['label'] ?? '' ),
+                    'sublabel' => sanitize_text_field( $item['sublabel'] ?? '' ),
+                ];
+            }
+        }
+        update_post_meta( $post_id, '_homepage_stats', $clean_stats );
+    }
+
+    // Save Homepage About Us fields
+    if ( isset( $_POST['travzo_about_home_nonce'] ) &&
+         wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['travzo_about_home_nonce'] ) ), 'travzo_about_home_save' ) ) {
+        $about_fields = [
+            '_homepage_about_label'       => 'sanitize_text_field',
+            '_homepage_about_heading'     => 'sanitize_text_field',
+            '_homepage_about_description' => 'sanitize_textarea_field',
+            '_homepage_about_keypoints'   => 'sanitize_textarea_field',
+            '_homepage_about_btn_text'    => 'sanitize_text_field',
+            '_homepage_about_btn_url'     => 'esc_url_raw',
+        ];
+        foreach ( $about_fields as $key => $sanitizer ) {
+            if ( isset( $_POST[ $key ] ) ) {
+                update_post_meta( $post_id, $key, $sanitizer( wp_unslash( $_POST[ $key ] ) ) );
+            }
+        }
+        // Image URL
+        $img = isset( $_POST['_homepage_about_image'] ) ? esc_url_raw( wp_unslash( $_POST['_homepage_about_image'] ) ) : '';
+        update_post_meta( $post_id, '_homepage_about_image', $img );
+    }
+
+    // Save Hero Section fields
+    if ( isset( $_POST['travzo_hero_home_nonce'] ) &&
+         wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['travzo_hero_home_nonce'] ) ), 'travzo_hero_home_save' ) ) {
+        $hero_text_fields = [
+            '_homepage_hero_badge'     => 'sanitize_text_field',
+            '_homepage_hero_heading'   => 'sanitize_textarea_field',
+            '_homepage_hero_subtext'   => 'sanitize_text_field',
+            '_homepage_hero_btn1_text' => 'sanitize_text_field',
+            '_homepage_hero_btn1_url'  => 'esc_url_raw',
+            '_homepage_hero_btn2_text' => 'sanitize_text_field',
+            '_homepage_hero_btn2_url'  => 'esc_url_raw',
+        ];
+        foreach ( $hero_text_fields as $key => $sanitizer ) {
+            if ( isset( $_POST[ $key ] ) ) {
+                update_post_meta( $post_id, $key, $sanitizer( wp_unslash( $_POST[ $key ] ) ) );
+            }
+        }
+        $hero_img = isset( $_POST['_homepage_hero_image'] ) ? esc_url_raw( wp_unslash( $_POST['_homepage_hero_image'] ) ) : '';
+        update_post_meta( $post_id, '_homepage_hero_image', $hero_img );
+    }
+
+    // Save Homepage Contact Section text fields
+    if ( isset( $_POST['travzo_contact_home_nonce'] ) &&
+         wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['travzo_contact_home_nonce'] ) ), 'travzo_contact_home_save' ) ) {
+        $contact_fields = [
+            '_homepage_contact_label'       => 'sanitize_text_field',
+            '_homepage_contact_heading'     => 'sanitize_text_field',
+            '_homepage_contact_description' => 'sanitize_textarea_field',
+            '_homepage_contact_hours'       => 'sanitize_text_field',
+        ];
+        foreach ( $contact_fields as $key => $sanitizer ) {
+            if ( isset( $_POST[ $key ] ) ) {
+                update_post_meta( $post_id, $key, $sanitizer( wp_unslash( $_POST[ $key ] ) ) );
+            }
+        }
     }
 } );
 
@@ -1036,33 +1785,73 @@ function travzo_render_form( $form_key_or_id, $fallback_html = '' ) {
  */
 function travzo_default_enquiry_form() {
     ob_start(); ?>
-    <form method="POST" class="enquiry-form">
+    <form method="POST" class="contact-form enquiry-form" novalidate>
         <?php wp_nonce_field( 'travzo_enquiry_form', 'travzo_nonce' ); ?>
         <input type="hidden" name="travzo_enquiry" value="1">
-        <div class="form-row">
-            <div class="form-group"><label>Your Name *</label><input type="text" name="enquiry_name" required placeholder="Ramesh Kumar"></div>
-            <div class="form-group"><label>City *</label><input type="text" name="enquiry_city" required placeholder="Coimbatore"></div>
-        </div>
-        <div class="form-row">
-            <div class="form-group"><label>Email *</label><input type="email" name="enquiry_email" required placeholder="your@email.com"></div>
-            <div class="form-group"><label>Phone *</label><input type="tel" name="enquiry_phone" required placeholder="+91 XXXXX XXXXX"></div>
-        </div>
-        <div class="form-row">
-            <div class="form-group"><label>Destination</label><input type="text" name="enquiry_destination" placeholder="Bali, Kerala, Europe"></div>
-            <div class="form-group"><label>Travel Date</label><input type="date" name="enquiry_date"></div>
-        </div>
-        <div class="form-row">
-            <div class="form-group"><label>No. of People</label><input type="number" name="enquiry_people" min="1" placeholder="4"></div>
-            <div class="form-group"><label>Trip Type</label>
-                <select name="enquiry_trip_type">
-                    <option value="">Select Type</option>
-                    <option>Honeymoon</option><option>Group Tour</option><option>Solo Trip</option>
-                    <option>Devotional</option><option>Destination Wedding</option>
-                    <option>Family Trip</option><option>Corporate Trip</option>
-                </select>
+
+        <div class="cform-row">
+            <div class="cform-group">
+                <label for="eq_name">Your Name <span aria-hidden="true">*</span></label>
+                <input type="text" id="eq_name" name="enquiry_name" required placeholder="Ramesh Kumar">
+            </div>
+            <div class="cform-group">
+                <label for="eq_city">City <span aria-hidden="true">*</span></label>
+                <input type="text" id="eq_city" name="enquiry_city" required placeholder="Coimbatore">
             </div>
         </div>
-        <button type="submit" class="btn btn--gold btn--full">Send Enquiry</button>
+
+        <div class="cform-row">
+            <div class="cform-group">
+                <label for="eq_email">Email <span aria-hidden="true">*</span></label>
+                <input type="email" id="eq_email" name="enquiry_email" required placeholder="your@email.com">
+            </div>
+            <div class="cform-group">
+                <label for="eq_phone">Phone <span aria-hidden="true">*</span></label>
+                <input type="tel" id="eq_phone" name="enquiry_phone" required placeholder="+91 XXXXX XXXXX">
+            </div>
+        </div>
+
+        <div class="cform-row">
+            <div class="cform-group">
+                <label for="eq_dest">Destination</label>
+                <input type="text" id="eq_dest" name="enquiry_destination" placeholder="Bali, Kerala, Europe">
+            </div>
+            <div class="cform-row__half">
+                <div class="cform-group">
+                    <label for="eq_date">Travel Date</label>
+                    <input type="date" id="eq_date" name="enquiry_date">
+                </div>
+                <div class="cform-group">
+                    <label for="eq_people">No. of People</label>
+                    <select id="eq_people" name="enquiry_people">
+                        <option value="">Select</option>
+                        <?php for ( $i = 1; $i <= 15; $i++ ) : ?>
+                        <option value="<?php echo $i; ?>"><?php echo $i; ?></option>
+                        <?php endfor; ?>
+                        <option value="15+">15+</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="cform-group">
+            <label for="eq_trip">Trip Type</label>
+            <select id="eq_trip" name="enquiry_trip_type">
+                <option value="">Select trip type</option>
+                <option value="Honeymoon">Honeymoon</option>
+                <option value="Group Tour">Group Tour</option>
+                <option value="Solo Trip">Solo Trip</option>
+                <option value="Devotional">Devotional</option>
+                <option value="Destination Wedding">Destination Wedding</option>
+                <option value="Family Trip">Family Trip</option>
+                <option value="Corporate Trip">Corporate Trip</option>
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn--gold btn--full">
+            Send Enquiry
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
     </form>
     <?php return ob_get_clean();
 }

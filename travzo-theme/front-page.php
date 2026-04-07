@@ -55,17 +55,39 @@ get_header();
      SECTION 1 – HERO
 ════════════════════════════════════════════════════════════════ -->
 <?php
-$hero_image              = travzo_get( 'travzo_hero_image', '' );
-$hero_badge              = travzo_get( 'travzo_hero_badge',     'Trusted by 500+ Happy Travellers' );
-$hero_heading            = travzo_get( 'travzo_hero_heading',   'Discover the World With Travzo Holidays' );
-$hero_subtext            = travzo_get( 'travzo_hero_subtext',   'Handcrafted itineraries for every kind of traveller.' );
-$hero_primary_btn_text   = travzo_get( 'travzo_hero_btn1_text', 'Explore Packages' );
-$hero_primary_btn_url    = travzo_get( 'travzo_hero_btn1_url',  home_url( '/packages' ) );
-$hero_secondary_btn_text = travzo_get( 'travzo_hero_btn2_text', 'Enquire Now' );
-$hero_secondary_btn_url  = travzo_get( 'travzo_hero_btn2_url',  home_url( '/contact' ) );
+$_pid = get_the_ID();
+$hero_badge              = get_post_meta( $_pid, '_homepage_hero_badge', true );
+$hero_heading            = get_post_meta( $_pid, '_homepage_hero_heading', true );
+$hero_subtext            = get_post_meta( $_pid, '_homepage_hero_subtext', true );
+$hero_primary_btn_text   = get_post_meta( $_pid, '_homepage_hero_btn1_text', true );
+$hero_primary_btn_url    = get_post_meta( $_pid, '_homepage_hero_btn1_url', true );
+$hero_secondary_btn_text = get_post_meta( $_pid, '_homepage_hero_btn2_text', true );
+$hero_secondary_btn_url  = get_post_meta( $_pid, '_homepage_hero_btn2_url', true );
+$hero_image              = get_post_meta( $_pid, '_homepage_hero_image', true );
+
+// Backward compat: pull old customizer values
+if ( '' === $hero_badge && '' === $hero_heading && '' === $hero_subtext ) {
+    $hero_badge              = get_theme_mod( 'travzo_hero_badge', '' );
+    $hero_heading            = get_theme_mod( 'travzo_hero_heading', '' );
+    $hero_subtext            = get_theme_mod( 'travzo_hero_subtext', '' );
+    $hero_primary_btn_text   = $hero_primary_btn_text   ?: get_theme_mod( 'travzo_hero_btn1_text', '' );
+    $hero_primary_btn_url    = $hero_primary_btn_url    ?: get_theme_mod( 'travzo_hero_btn1_url', '' );
+    $hero_secondary_btn_text = $hero_secondary_btn_text ?: get_theme_mod( 'travzo_hero_btn2_text', '' );
+    $hero_secondary_btn_url  = $hero_secondary_btn_url  ?: get_theme_mod( 'travzo_hero_btn2_url', '' );
+    $hero_image              = $hero_image              ?: get_theme_mod( 'travzo_hero_image', '' );
+}
+
+// Defaults
+if ( ! $hero_badge )              $hero_badge              = 'Trusted by 500+ Happy Travellers';
+if ( ! $hero_heading )            $hero_heading            = 'Discover the World With Travzo Holidays';
+if ( ! $hero_subtext )            $hero_subtext            = 'Handcrafted itineraries for every kind of traveller.';
+if ( ! $hero_primary_btn_text )   $hero_primary_btn_text   = 'Explore Packages';
+if ( ! $hero_primary_btn_url )    $hero_primary_btn_url    = home_url( '/packages' );
+if ( ! $hero_secondary_btn_text ) $hero_secondary_btn_text = 'Enquire Now';
+if ( ! $hero_secondary_btn_url )  $hero_secondary_btn_url  = home_url( '/contact' );
 
 $hero_bg_style = $hero_image
-    ? 'background-image: url(' . $hero_image . ');'
+    ? 'background-image: url(' . esc_url( $hero_image ) . ');'
     : 'background: linear-gradient(135deg, #1A2A5E 0%, #2D4080 100%);';
 ?>
 <section class="hero-section" style="<?php echo $hero_bg_style; ?>">
@@ -79,7 +101,7 @@ $hero_bg_style = $hero_image
             <?php echo esc_html( $hero_badge ); ?>
         </span>
 
-        <h1 class="hero-heading"><?php echo esc_html( $hero_heading ); ?></h1>
+        <h1 class="hero-heading"><?php echo nl2br( esc_html( $hero_heading ) ); ?></h1>
 
         <p class="hero-subtext"><?php echo esc_html( $hero_subtext ); ?></p>
 
@@ -172,13 +194,12 @@ $pkg_tile_colors = [ '#2D5016', '#5C1A4A', '#1A3A5C', '#5C3A1A', '#1A5C4A', '#2A
                 $t_url   = $tile[2] ?? home_url( '/packages' );
                 $t_image = $tile[3] ?? '';
                 $t_color = $pkg_tile_colors[ $idx % count( $pkg_tile_colors ) ];
-                $t_class = ( $idx < 2 ) ? 'package-tile package-tile--large' : 'package-tile package-tile--small';
                 $t_style = $t_image
                     ? 'background-image: url(' . esc_url( $t_image ) . ');'
                     : 'background-color: ' . esc_attr( $t_color ) . ';';
             ?>
             <a href="<?php echo esc_url( $t_url ); ?>"
-               class="<?php echo esc_attr( $t_class ); ?>"
+               class="package-tile"
                style="<?php echo $t_style; ?>">
                 <div class="package-tile__overlay"></div>
                 <div class="package-tile__content">
@@ -198,35 +219,51 @@ $pkg_tile_colors = [ '#2D5016', '#5C1A4A', '#1A3A5C', '#5C3A1A', '#1A5C4A', '#2A
      SECTION 3 – STATS BAR
 ════════════════════════════════════════════════════════════════ -->
 <?php
-$stats = [
-    [
-        'number'      => travzo_get( 'travzo_stat_1_number', '500+' ),
-        'label'       => travzo_get( 'travzo_stat_1_label',  'Happy Travellers' ),
-        'description' => travzo_get( 'travzo_stat_1_description', 'Memorable journeys created' ),
-    ],
-    [
-        'number'      => travzo_get( 'travzo_stat_2_number', '50+' ),
-        'label'       => travzo_get( 'travzo_stat_2_label',  'Destinations' ),
-        'description' => travzo_get( 'travzo_stat_2_description', 'Across India and abroad' ),
-    ],
-    [
-        'number'      => travzo_get( 'travzo_stat_3_number', '10+' ),
-        'label'       => travzo_get( 'travzo_stat_3_label',  'Years Experience' ),
-        'description' => travzo_get( 'travzo_stat_3_description', 'Of trusted travel expertise' ),
-    ],
-    [
-        'number'      => travzo_get( 'travzo_stat_4_number', '100%' ),
-        'label'       => travzo_get( 'travzo_stat_4_label',  'Customised Itineraries' ),
-        'description' => travzo_get( 'travzo_stat_4_description', 'Tailored to your needs' ),
-    ],
-];
+$stats_stored = get_post_meta( get_the_ID(), '_homepage_stats', true );
+$stats = [];
+
+if ( is_array( $stats_stored ) && ! empty( $stats_stored ) ) {
+    $stats = $stats_stored;
+}
+
+// Backward compat: pull old customizer values
+if ( empty( $stats ) ) {
+    $cust_defaults = [
+        [ '500+', 'Happy Travellers',      'Memorable journeys created' ],
+        [ '50+',  'Destinations',           'Across India and abroad' ],
+        [ '10+',  'Years Experience',       'Of trusted travel expertise' ],
+        [ '100%', 'Customised Itineraries', 'Tailored to your needs' ],
+    ];
+    for ( $i = 1; $i <= 4; $i++ ) {
+        $num = get_theme_mod( "travzo_stat_{$i}_number", '' );
+        $lbl = get_theme_mod( "travzo_stat_{$i}_label", '' );
+        $sub = get_theme_mod( "travzo_stat_{$i}_description", '' );
+        if ( $num || $lbl ) {
+            $stats[] = [
+                'number'   => $num ?: $cust_defaults[ $i - 1 ][0],
+                'label'    => $lbl ?: $cust_defaults[ $i - 1 ][1],
+                'sublabel' => $sub ?: $cust_defaults[ $i - 1 ][2],
+            ];
+        }
+    }
+}
+
+// Ultimate fallback
+if ( empty( $stats ) ) {
+    $stats = [
+        [ 'number' => '500+', 'label' => 'Happy Travellers',      'sublabel' => 'Memorable journeys created' ],
+        [ 'number' => '50+',  'label' => 'Destinations',           'sublabel' => 'Across India and abroad' ],
+        [ 'number' => '10+',  'label' => 'Years Experience',       'sublabel' => 'Of trusted travel expertise' ],
+        [ 'number' => '100%', 'label' => 'Customised Itineraries', 'sublabel' => 'Tailored to your needs' ],
+    ];
+}
 ?>
 <section class="stats-section">
     <div class="stats-inner">
         <?php foreach ( $stats as $index => $stat ) :
-            $number      = $stat['number'];
-            $label       = $stat['label'];
-            $description = $stat['description'];
+            $number      = $stat['number'] ?? '';
+            $label       = $stat['label'] ?? '';
+            $description = $stat['sublabel'] ?? '';
         ?>
         <div class="stat-block">
             <span class="stat-number"><?php echo esc_html( $number ); ?></span>
@@ -245,15 +282,36 @@ $stats = [
      SECTION 4 – ABOUT SNIPPET
 ════════════════════════════════════════════════════════════════ -->
 <?php
-$about_label     = travzo_get( 'travzo_about_label',   'WHO WE ARE' );
-$about_heading   = travzo_get( 'travzo_about_heading', 'Your Trusted Travel Partner' );
-$about_image_url = travzo_get( 'travzo_about_image',   '' );
-$about_text      = travzo_get( 'travzo_about_text',    'Travzo Holidays is a Coimbatore-based travel agency with over a decade of experience crafting unforgettable journeys. From serene backwater cruises in Kerala to sacred Char Dham pilgrimages, we design every itinerary with care, passion, and deep local knowledge — so you can travel with complete peace of mind.' );
-$about_feature_1 = travzo_get( 'travzo_about_feat1',   'Handcrafted Itineraries' );
-$about_feature_2 = travzo_get( 'travzo_about_feat2',   'Best Price Guarantee' );
-$about_feature_3 = travzo_get( 'travzo_about_feat3',   '24/7 Support' );
-$about_btn_text  = 'Learn More About Us';
-$about_btn_url   = home_url( '/about' );
+$_pid = get_the_ID();
+$about_label     = get_post_meta( $_pid, '_homepage_about_label', true );
+$about_heading   = get_post_meta( $_pid, '_homepage_about_heading', true );
+$about_text      = get_post_meta( $_pid, '_homepage_about_description', true );
+$about_keypoints = get_post_meta( $_pid, '_homepage_about_keypoints', true );
+$about_image_url = get_post_meta( $_pid, '_homepage_about_image', true );
+$about_btn_text  = get_post_meta( $_pid, '_homepage_about_btn_text', true );
+$about_btn_url   = get_post_meta( $_pid, '_homepage_about_btn_url', true );
+
+// Backward compat: pull old customizer values
+if ( '' === $about_label && '' === $about_heading && '' === $about_text ) {
+    $about_label     = get_theme_mod( 'travzo_about_label', '' );
+    $about_heading   = get_theme_mod( 'travzo_about_heading', '' );
+    $about_text      = get_theme_mod( 'travzo_about_text', '' );
+    $about_image_url = $about_image_url ?: get_theme_mod( 'travzo_about_image', '' );
+    $feat1 = get_theme_mod( 'travzo_about_feat1', '' );
+    $feat2 = get_theme_mod( 'travzo_about_feat2', '' );
+    $feat3 = get_theme_mod( 'travzo_about_feat3', '' );
+    $about_keypoints = $about_keypoints ?: implode( "\n", array_filter( [ $feat1, $feat2, $feat3 ] ) );
+}
+
+// Defaults
+if ( ! $about_label )     $about_label     = 'WHO WE ARE';
+if ( ! $about_heading )   $about_heading   = 'Your Trusted Travel Partner';
+if ( ! $about_text )      $about_text      = 'Travzo Holidays is a Coimbatore-based travel agency with over a decade of experience crafting unforgettable journeys. From serene backwater cruises in Kerala to sacred Char Dham pilgrimages, we design every itinerary with care, passion, and deep local knowledge — so you can travel with complete peace of mind.';
+if ( ! $about_keypoints ) $about_keypoints = "Handcrafted Itineraries\nBest Price Guarantee\n24/7 Support";
+if ( ! $about_btn_text )  $about_btn_text  = 'Learn More About Us';
+if ( ! $about_btn_url )   $about_btn_url   = home_url( '/about' );
+
+$about_features = array_filter( array_map( 'trim', explode( "\n", $about_keypoints ) ) );
 ?>
 <section class="about-snippet">
     <div class="section-inner about-snippet__inner">
@@ -261,7 +319,7 @@ $about_btn_url   = home_url( '/about' );
         <!-- Left: image -->
         <div class="about-snippet__image-wrap">
             <?php if ( $about_image_url ) : ?>
-                <img src="<?php echo $about_image_url; ?>"
+                <img src="<?php echo esc_url( $about_image_url ); ?>"
                      alt="<?php esc_attr_e( 'About Travzo Holidays', 'travzo' ); ?>"
                      class="about-snippet__image" loading="lazy">
             <?php else : ?>
@@ -281,8 +339,7 @@ $about_btn_url   = home_url( '/about' );
             <p class="about-snippet__text"><?php echo wp_kses_post( $about_text ); ?></p>
 
             <ul class="about-features">
-                <?php foreach ( [ $about_feature_1, $about_feature_2, $about_feature_3 ] as $feature ) :
-                    if ( ! $feature ) continue; ?>
+                <?php foreach ( $about_features as $feature ) : ?>
                 <li class="about-feature">
                     <svg class="about-feature__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <polyline points="20 6 9 17 4 12"/>
@@ -420,23 +477,42 @@ $about_btn_url   = home_url( '/about' );
 <!-- ════════════════════════════════════════════════════════════════
      SECTION 6 – WHY CHOOSE US
 ════════════════════════════════════════════════════════════════ -->
+<?php $whyus_raw = get_post_meta(get_the_ID(), '_homepage_whyus', true); echo '<!-- DEBUG WHYUS page_id=' . get_the_ID() . ' type=' . gettype($whyus_raw) . ' data=' . esc_html(substr(print_r($whyus_raw, true), 0, 500)) . ' -->'; ?>
 <?php
-$why_label   = travzo_get( 'travzo_why_us_label',   'Our Promise' );
-$why_heading = travzo_get( 'travzo_why_us_heading', 'Why Travel With Travzo' );
-$why_tiles   = travzo_parse_lines( travzo_get( 'travzo_why_us_tiles', '' ), 2 );
+$whyus_data = get_post_meta( get_the_ID(), '_homepage_whyus', true );
 
-if ( empty( $why_tiles ) ) {
-    $why_tiles = [
-        [ 'Handcrafted Itineraries', 'Every trip is built around your preferences, pace, and budget — no cookie-cutter packages, just journeys made for you.' ],
-        [ 'Best Price Guarantee',    'We negotiate directly with hotels, airlines, and local operators so you always get the most value for your money.' ],
-        [ '24/7 Dedicated Support',  'Our travel experts are always just a call or WhatsApp message away — before, during, and after your trip.' ],
-        [ 'Expert Local Knowledge',  'Our team has firsthand experience of every destination we offer, giving you authentic insider recommendations.' ],
-        [ 'Visa & Documentation',    'We handle all visa paperwork and travel documentation so you can focus on the excitement of your upcoming trip.' ],
-        [ 'Safe & Reliable Travel',  'All our partners — hotels, transport, guides — are carefully vetted for safety, quality, and reliability.' ],
+// Backward compat: pull old customizer values if meta box hasn't been saved yet
+if ( ! is_array( $whyus_data ) || empty( $whyus_data ) ) {
+    $old_label   = get_theme_mod( 'travzo_why_us_label', '' );
+    $old_heading = get_theme_mod( 'travzo_why_us_heading', '' );
+    $old_tiles   = travzo_parse_lines( get_theme_mod( 'travzo_why_us_tiles', '' ), 2 );
+    $tiles = [];
+    foreach ( $old_tiles as $t ) {
+        $tiles[] = [ 'icon' => '', 'title' => $t[0] ?? '', 'desc' => $t[1] ?? '' ];
+    }
+    $whyus_data = [
+        'label'   => $old_label ?: 'WHY TRAVZO',
+        'heading' => $old_heading ?: 'Why Travel With Us',
+        'tiles'   => $tiles,
     ];
 }
 
-// 6 icons cycling per tile
+$why_label   = $whyus_data['label'] ?: 'WHY TRAVZO';
+$why_heading = $whyus_data['heading'] ?: 'Why Travel With Us';
+$why_tiles   = $whyus_data['tiles'] ?? [];
+
+if ( empty( $why_tiles ) ) {
+    $why_tiles = [
+        [ 'icon' => '', 'title' => 'Handcrafted Itineraries', 'desc' => 'Every trip is built around your preferences, pace, and budget — no cookie-cutter packages, just journeys made for you.' ],
+        [ 'icon' => '', 'title' => 'Best Price Guarantee',    'desc' => 'We negotiate directly with hotels, airlines, and local operators so you always get the most value for your money.' ],
+        [ 'icon' => '', 'title' => '24/7 Dedicated Support',  'desc' => 'Our travel experts are always just a call or WhatsApp message away — before, during, and after your trip.' ],
+        [ 'icon' => '', 'title' => 'Expert Local Knowledge',  'desc' => 'Our team has firsthand experience of every destination we offer, giving you authentic insider recommendations.' ],
+        [ 'icon' => '', 'title' => 'Visa & Documentation',    'desc' => 'We handle all visa paperwork and travel documentation so you can focus on the excitement of your upcoming trip.' ],
+        [ 'icon' => '', 'title' => 'Safe & Reliable Travel',  'desc' => 'All our partners — hotels, transport, guides — are carefully vetted for safety, quality, and reliability.' ],
+    ];
+}
+
+// 6 SVG icons cycling per tile (used when icon text is empty)
 $why_icons = [
     '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#C9A227" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>',
     '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#C9A227" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>',
@@ -453,13 +529,17 @@ $why_icons = [
 
         <div class="why-us-blocks">
             <?php foreach ( $why_tiles as $i => $tile ) :
-                $w_title = esc_html( $tile[0] ?? '' );
-                $w_text  = esc_html( $tile[1] ?? '' );
-                $w_icon  = $why_icons[ $i % count( $why_icons ) ];
+                $w_title = esc_html( $tile['title'] ?? '' );
+                $w_text  = esc_html( $tile['desc'] ?? '' );
+                $w_icon_text = trim( $tile['icon'] ?? '' );
             ?>
             <div class="why-us-block">
                 <div class="why-us-block__icon-wrap">
-                    <?php echo $w_icon; ?>
+                    <?php if ( $w_icon_text ) : ?>
+                        <span style="font-size:28px;line-height:1"><?php echo esc_html( $w_icon_text ); ?></span>
+                    <?php else : ?>
+                        <?php echo $why_icons[ $i % count( $why_icons ) ]; ?>
+                    <?php endif; ?>
                 </div>
                 <h3 class="why-us-block__title"><?php echo $w_title; ?></h3>
                 <p class="why-us-block__text"><?php echo $w_text; ?></p>
@@ -474,49 +554,66 @@ $why_icons = [
 <!-- ════════════════════════════════════════════════════════════════
      SECTION 7 – TESTIMONIALS
 ════════════════════════════════════════════════════════════════ -->
+<?php $test_raw = get_post_meta(get_the_ID(), '_testimonials', true); echo '<!-- DEBUG TESTIMONIALS page_id=' . get_the_ID() . ' type=' . gettype($test_raw) . ' data=' . esc_html(substr(print_r($test_raw, true), 0, 500)) . ' -->'; ?>
 <?php
-// cols: [0]=name, [1]=trip, [2]=quote
-$testimonials_raw = get_post_meta( get_the_ID(), '_testimonials', true );
-$testimonials     = travzo_parse_lines( $testimonials_raw, 3 );
+// Read testimonials — supports new array format and old pipe-separated text
+$testimonials_stored = get_post_meta( get_the_ID(), '_testimonials', true );
+$testimonials = [];
 
+if ( is_array( $testimonials_stored ) && ! empty( $testimonials_stored ) ) {
+    // New format: array of { name, trip, quote, rating }
+    $testimonials = $testimonials_stored;
+} elseif ( is_string( $testimonials_stored ) && '' !== trim( $testimonials_stored ) ) {
+    // Old pipe-separated format: "Name | Trip | Quote" per line
+    foreach ( explode( "\n", $testimonials_stored ) as $line ) {
+        $parts = array_map( 'trim', explode( '|', $line ) );
+        if ( ! empty( $parts[0] ) ) {
+            $testimonials[] = [
+                'name'   => $parts[0],
+                'trip'   => $parts[1] ?? '',
+                'quote'  => $parts[2] ?? '',
+                'rating' => 5,
+            ];
+        }
+    }
+}
+
+// Fallback defaults
 if ( empty( $testimonials ) ) {
     $testimonials = [
-        [ 'Priya & Arjun Nair',    'Kashmir Honeymoon – 7 Days',       '"Travzo made our Kashmir honeymoon absolutely magical. Every detail was taken care of — from the shikara ride to the houseboat stay. We didn\'t have to worry about a single thing."' ],
-        [ 'Rajesh Murugan',        'Char Dham Yatra – 12 Days',        '"We did the Char Dham Yatra with Travzo and it was a life-changing experience. The team\'s coordination was flawless, and our guide was knowledgeable and caring throughout."' ],
-        [ 'Sunita Krishnamurthy',  'Rajasthan Group Tour – 8 Days',    '"Booked a group tour to Rajasthan for 18 people and everything went smoothly. Great hotels, punctual transfers, and the best price we found anywhere. Highly recommend Travzo!"' ],
+        [ 'name' => 'Priya & Arjun Nair',    'trip' => 'Kashmir Honeymoon – 7 Days',    'quote' => 'Travzo made our Kashmir honeymoon absolutely magical. Every detail was taken care of — from the shikara ride to the houseboat stay. We didn\'t have to worry about a single thing.', 'rating' => 5 ],
+        [ 'name' => 'Rajesh Murugan',         'trip' => 'Char Dham Yatra – 12 Days',     'quote' => 'We did the Char Dham Yatra with Travzo and it was a life-changing experience. The team\'s coordination was flawless, and our guide was knowledgeable and caring throughout.', 'rating' => 5 ],
+        [ 'name' => 'Sunita Krishnamurthy',   'trip' => 'Rajasthan Group Tour – 8 Days', 'quote' => 'Booked a group tour to Rajasthan for 18 people and everything went smoothly. Great hotels, punctual transfers, and the best price we found anywhere. Highly recommend Travzo!', 'rating' => 5 ],
     ];
 }
 
-$star_svg_white = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#C9A227" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
+$star_svg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#C9A227" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
+$star_svg_empty = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#C9A227" stroke-width="1.5" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
 ?>
 <section class="testimonials-section">
     <div class="section-inner">
         <div class="section-label section-label--white">What Our Travellers Say</div>
         <h2 class="section-heading section-heading--white">Real Stories, Real Journeys</h2>
 
-        <div class="testimonials-row">
+        <div class="testimonials-grid">
         <?php foreach ( $testimonials as $t ) :
-            $name     = $t[0] ?? '';
-            $trip     = $t[1] ?? '';
-            $quote    = $t[2] ?? '';
-            $avatar   = '';
-            $initials = $name ? strtoupper( substr( $name, 0, 1 ) ) : 'T';
+            $name     = $t['name']   ?? '';
+            $trip     = $t['trip']   ?? '';
+            $quote    = $t['quote']  ?? '';
+            $rating   = max( 1, min( 5, intval( $t['rating'] ?? 5 ) ) );
+            $initials = $name ? strtoupper( mb_substr( $name, 0, 1 ) ) : 'T';
         ?>
             <div class="testimonial-card">
                 <div class="testimonial-card__stars">
-                    <?php echo str_repeat( $star_svg_white, 5 ); ?>
+                    <?php echo str_repeat( $star_svg, $rating ) . str_repeat( $star_svg_empty, 5 - $rating ); ?>
                 </div>
                 <blockquote class="testimonial-card__quote">
-                    <?php echo wp_kses_post( $quote ); ?>
+                    &ldquo;<?php echo wp_kses_post( $quote ); ?>&rdquo;
                 </blockquote>
                 <hr class="testimonial-card__divider">
                 <div class="testimonial-card__footer">
                     <div class="testimonial-card__avatar">
-                        <?php if ( $avatar ) : ?>
-                            <img src="<?php echo esc_url( $avatar ); ?>" alt="<?php echo esc_attr( $name ); ?>" loading="lazy">
-                        <?php else : ?>
-                            <span class="testimonial-card__avatar-initial"><?php echo esc_html( $initials ); ?></span>
-                        <?php endif; ?>
+                        <span class="testimonial-card__avatar-initial"><?php echo esc_html( $initials ); ?></span>
                     </div>
                     <div class="testimonial-card__info">
                         <strong class="testimonial-card__name"><?php echo esc_html( $name ); ?></strong>
@@ -525,7 +622,7 @@ $star_svg_white = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#C9A227
                 </div>
             </div>
         <?php endforeach; ?>
-        </div><!-- /.testimonials-row -->
+        </div><!-- /.testimonials-grid -->
     </div>
 </section>
 
@@ -534,10 +631,30 @@ $star_svg_white = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#C9A227
      SECTION 8 – ENQUIRY FORM
 ════════════════════════════════════════════════════════════════ -->
 <?php
+// Left side text — from meta box
+$_pid = get_the_ID();
+$enq_label   = get_post_meta( $_pid, '_homepage_contact_label', true );
+$enq_heading = get_post_meta( $_pid, '_homepage_contact_heading', true );
+$enq_desc    = get_post_meta( $_pid, '_homepage_contact_description', true );
+$enq_hours   = get_post_meta( $_pid, '_homepage_contact_hours', true );
+
+// Backward compat: old customizer values
+if ( '' === $enq_label && '' === $enq_heading && '' === $enq_desc ) {
+    $enq_label   = get_theme_mod( 'travzo_contact_label', '' );
+    $enq_heading = get_theme_mod( 'travzo_contact_heading', '' );
+    $enq_desc    = get_theme_mod( 'travzo_contact_desc', '' );
+}
+
+// Defaults
+if ( ! $enq_label )   $enq_label   = 'Get In Touch';
+if ( ! $enq_heading ) $enq_heading = 'Plan Your Dream Trip';
+if ( ! $enq_desc )    $enq_desc    = 'Talk to our travel experts and let us craft the perfect holiday for you. No obligation, just great ideas.';
+if ( ! $enq_hours )   $enq_hours   = travzo_get( 'travzo_footer_hours', 'Mon – Sat: 9:00 AM – 7:00 PM' );
+
+// Contact details — still from global customizer (site-wide)
 $enq_phone     = travzo_get( 'travzo_phone', '' );
 $enq_email     = travzo_get( 'travzo_email', '' );
 $enq_whatsapp  = travzo_get( 'travzo_whatsapp', '' );
-$enq_hours     = travzo_get( 'travzo_footer_hours', 'Mon – Sat: 9:00 AM – 7:00 PM' );
 $enq_phone_url = $enq_phone ? 'tel:' . preg_replace( '/[^+0-9]/', '', $enq_phone ) : '';
 $enq_wa_url    = $enq_whatsapp ? 'https://wa.me/' . preg_replace( '/[^0-9]/', '', $enq_whatsapp ) : '';
 ?>
@@ -546,10 +663,10 @@ $enq_wa_url    = $enq_whatsapp ? 'https://wa.me/' . preg_replace( '/[^0-9]/', ''
 
         <!-- Left: contact info card -->
         <div class="enquiry-info">
-            <div class="section-label">Get In Touch</div>
-            <h2 class="section-heading section-heading--left section-heading--white">Plan Your Dream Trip</h2>
+            <div class="section-label"><?php echo esc_html( $enq_label ); ?></div>
+            <h2 class="section-heading section-heading--left section-heading--white"><?php echo esc_html( $enq_heading ); ?></h2>
             <p class="enquiry-info__subtext">
-                <?php esc_html_e( 'Talk to our travel experts and let us craft the perfect holiday for you. No obligation, just great ideas.', 'travzo' ); ?>
+                <?php echo esc_html( $enq_desc ); ?>
             </p>
 
             <div class="enquiry-contact-rows">

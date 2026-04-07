@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php -l functions.php)",
+      "Bash(php -l front-page.php)"
+    ]
+  }
+}

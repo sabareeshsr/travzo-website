@@ -20,7 +20,7 @@ if ( $f_type ) {
     $meta_query[] = [
         'key'     => '_package_type',
         'value'   => $f_type,
-        'compare' => 'LIKE',
+        'compare' => '=',
     ];
 }
 

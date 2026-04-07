@@ -1,6 +1,8 @@
 <?php
 /**
- * Archive / Blog List
+ * Blog Index Template (home.php)
+ * Used when a "Posts page" is set in Settings → Reading.
+ * WordPress template hierarchy: home.php > index.php
  *
  * @package Travzo
  */
@@ -9,43 +11,43 @@ $paged      = get_query_var( 'paged' ) ?: 1;
 $filter_cat = isset( $_GET['category'] ) ? sanitize_text_field( wp_unslash( $_GET['category'] ) ) : '';
 $categories = get_categories( [ 'hide_empty' => true ] );
 
-get_header(); ?>
+$_blog_hero_img   = travzo_get( 'travzo_blog_hero_image', '' );
+$_blog_hero_style = $_blog_hero_img ? 'background-image:url(' . esc_url( $_blog_hero_img ) . ');background-size:cover;background-position:center' : '';
+
+get_header();
+?>
 
 <main id="main-content">
 
-    <!-- ══ 1. HERO ══════════════════════════════════════════════════════════ -->
-    <?php
-    $_blog_hero_img   = travzo_get( 'travzo_blog_hero_image', '' );
-    $_blog_hero_style = $_blog_hero_img ? 'background-image:url(' . esc_url( $_blog_hero_img ) . ');background-size:cover;background-position:center' : '';
-    ?>
+    <!-- ══ 1. HERO ════════════════════════════════════════════════════════════ -->
     <section class="page-hero"<?php if ( $_blog_hero_style ) : ?> style="<?php echo $_blog_hero_style; ?>"<?php endif; ?>>
         <div class="page-hero-overlay"></div>
         <div class="section-inner">
             <div class="page-hero__content">
-                <nav class="page-hero__breadcrumb" aria-label="Breadcrumb">
-                    <a href="<?php echo esc_url( home_url( '/' ) ); ?>">Home</a>
+                <nav class="page-hero__breadcrumb" aria-label="<?php esc_attr_e( 'Breadcrumb', 'travzo' ); ?>">
+                    <a href="<?php echo esc_url( home_url( '/' ) ); ?>"><?php esc_html_e( 'Home', 'travzo' ); ?></a>
                     <span aria-hidden="true"> / </span>
-                    <span>Blog</span>
+                    <span><?php esc_html_e( 'Blog', 'travzo' ); ?></span>
                 </nav>
-                <h1 class="page-hero__heading"><?php echo esc_html( travzo_get( 'travzo_blog_hero_title', 'Travel Stories & Tips' ) ); ?></h1>
+                <h1 class="page-hero__heading"><?php echo esc_html( travzo_get( 'travzo_blog_hero_title', 'Travel Stories &amp; Tips' ) ); ?></h1>
                 <p class="page-hero__subtext"><?php echo esc_html( travzo_get( 'travzo_blog_hero_desc', 'Inspiration, guides and stories from our journeys around the world.' ) ); ?></p>
             </div>
         </div>
     </section>
 
-    <!-- ══ 2. CATEGORY FILTER ═══════════════════════════════════════════════ -->
+    <!-- ══ 2. CATEGORY FILTER ════════════════════════════════════════════════ -->
     <div class="blog-filter-bar">
         <div class="section-inner">
             <div class="blog-filter-tabs" role="list">
-                <a href="<?php echo esc_url( home_url( '/blog' ) ); ?>"
+                <a href="<?php echo esc_url( get_permalink( get_option( 'page_for_posts' ) ) ); ?>"
                    class="blog-filter-tab<?php echo ! $filter_cat ? ' active' : ''; ?>"
                    role="listitem">
-                    All Posts
+                    <?php esc_html_e( 'All Posts', 'travzo' ); ?>
                 </a>
                 <?php foreach ( $categories as $cat ) :
                     $is_active = $filter_cat === $cat->slug;
                 ?>
-                <a href="<?php echo esc_url( home_url( '/blog?category=' . $cat->slug ) ); ?>"
+                <a href="<?php echo esc_url( add_query_arg( 'category', $cat->slug, get_permalink( get_option( 'page_for_posts' ) ) ) ); ?>"
                    class="blog-filter-tab<?php echo $is_active ? ' active' : ''; ?>"
                    role="listitem"
                    <?php echo $is_active ? 'aria-current="page"' : ''; ?>>
@@ -57,17 +59,18 @@ get_header(); ?>
         </div>
     </div>
 
-    <!-- ══ 3. FEATURED POST (page 1, no filter) ═════════════════════════════ -->
+    <!-- ══ 3. FEATURED POST (page 1, no filter) ══════════════════════════════ -->
     <?php if ( $paged === 1 && ! $filter_cat ) :
-        // Prefer post flagged as featured; fall back to latest
-        $featured_query = new WP_Query( [
+        // Try to get the post flagged as featured first
+        $featured_q = new WP_Query( [
             'post_type'      => 'post',
             'posts_per_page' => 1,
             'post_status'    => 'publish',
             'meta_query'     => [ [ 'key' => '_is_featured_blog', 'value' => '1', 'compare' => '=' ] ],
         ] );
-        if ( ! $featured_query->have_posts() ) {
-            $featured_query = new WP_Query( [
+        // Fallback to latest post if none flagged
+        if ( ! $featured_q->have_posts() ) {
+            $featured_q = new WP_Query( [
                 'post_type'      => 'post',
                 'posts_per_page' => 1,
                 'post_status'    => 'publish',
@@ -75,26 +78,25 @@ get_header(); ?>
                 'order'          => 'DESC',
             ] );
         }
-        if ( $featured_query->have_posts() ) :
-            $featured_query->the_post();
-            $featured_thumb = get_the_post_thumbnail_url( get_the_ID(), 'large' );
-            $featured_cats  = get_the_category();
-            $featured_cat   = $featured_cats ? $featured_cats[0]->name : 'Travel';
+        if ( $featured_q->have_posts() ) :
+            $featured_q->the_post();
+            $f_thumb = get_the_post_thumbnail_url( get_the_ID(), 'large' );
+            $f_cats  = get_the_category();
+            $f_cat   = $f_cats ? $f_cats[0]->name : __( 'Travel', 'travzo' );
     ?>
     <section class="featured-post-section">
         <div class="section-inner">
             <div class="featured-post-card">
                 <div class="featured-post-image">
-                    <?php if ( $featured_thumb ) : ?>
-                    <img src="<?php echo esc_url( $featured_thumb ); ?>"
-                         alt="<?php the_title_attribute(); ?>">
+                    <?php if ( $f_thumb ) : ?>
+                        <img src="<?php echo esc_url( $f_thumb ); ?>" alt="<?php the_title_attribute(); ?>">
                     <?php else : ?>
-                    <div class="featured-post-image-placeholder" aria-hidden="true"></div>
+                        <div class="featured-post-image-placeholder" aria-hidden="true"></div>
                     <?php endif; ?>
-                    <span class="blog-category-tag"><?php echo esc_html( $featured_cat ); ?></span>
+                    <span class="blog-category-tag"><?php echo esc_html( $f_cat ); ?></span>
                 </div>
                 <div class="featured-post-content">
-                    <span class="section-label">Featured Post</span>
+                    <span class="section-label"><?php esc_html_e( 'FEATURED POST', 'travzo' ); ?></span>
                     <h2 class="featured-post-title">
                         <a href="<?php the_permalink(); ?>"><?php the_title(); ?></a>
                     </h2>
@@ -111,19 +113,21 @@ get_header(); ?>
                             <?php echo get_the_date( 'M j, Y' ); ?>
                         </span>
                     </div>
-                    <a href="<?php the_permalink(); ?>" class="btn btn--gold featured-post-btn">
-                        Read Article
+                    <a href="<?php the_permalink(); ?>" class="btn btn--gold featured-post-btn" style="margin-top:24px">
+                        <?php esc_html_e( 'Read Article', 'travzo' ); ?>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
                     </a>
                 </div>
             </div>
         </div>
     </section>
-    <?php wp_reset_postdata();
+    <?php
+        wp_reset_postdata();
         endif;
-    endif; ?>
+    endif;
+    ?>
 
-    <!-- ══ 4. BLOG GRID ═════════════════════════════════════════════════════ -->
+    <!-- ══ 4. BLOG GRID ══════════════════════════════════════════════════════ -->
     <section class="blog-list-section">
         <div class="section-inner">
 
@@ -136,37 +140,33 @@ get_header(); ?>
                 'orderby'        => 'date',
                 'order'          => 'DESC',
             ];
-
             if ( $filter_cat ) {
                 $blog_args['category_name'] = $filter_cat;
             }
-
-            // Skip the featured post on page 1 with no filter
             if ( $paged === 1 && ! $filter_cat ) {
                 $blog_args['offset'] = 1;
             }
-
-            $blog_query = new WP_Query( $blog_args );
+            $blog_q = new WP_Query( $blog_args );
             ?>
 
-            <?php if ( $blog_query->have_posts() ) : ?>
+            <?php if ( $blog_q->have_posts() ) : ?>
 
             <div class="blog-list-grid">
-                <?php while ( $blog_query->have_posts() ) : $blog_query->the_post();
-                    $thumb    = get_the_post_thumbnail_url( get_the_ID(), 'medium_large' );
-                    $cats     = get_the_category();
-                    $cat_name = $cats ? $cats[0]->name : 'Travel';
+                <?php while ( $blog_q->have_posts() ) : $blog_q->the_post();
+                    $b_thumb = get_the_post_thumbnail_url( get_the_ID(), 'medium_large' );
+                    $b_cats  = get_the_category();
+                    $b_cat   = $b_cats ? $b_cats[0]->name : __( 'Travel', 'travzo' );
                 ?>
                 <article class="blog-card">
                     <div class="blog-image-wrap">
-                        <?php if ( $thumb ) : ?>
-                        <img src="<?php echo esc_url( $thumb ); ?>"
-                             alt="<?php the_title_attribute(); ?>"
-                             class="blog-image" loading="lazy">
+                        <?php if ( $b_thumb ) : ?>
+                            <img src="<?php echo esc_url( $b_thumb ); ?>"
+                                 alt="<?php the_title_attribute(); ?>"
+                                 class="blog-image" loading="lazy">
                         <?php else : ?>
-                        <div class="blog-image-placeholder" aria-hidden="true"></div>
+                            <div class="blog-image-placeholder" aria-hidden="true"></div>
                         <?php endif; ?>
-                        <span class="blog-category"><?php echo esc_html( $cat_name ); ?></span>
+                        <span class="blog-category"><?php echo esc_html( $b_cat ); ?></span>
                     </div>
                     <div class="blog-body">
                         <h3 class="blog-title">
@@ -181,7 +181,7 @@ get_header(); ?>
                                 <?php echo get_the_date( 'M j, Y' ); ?>
                             </div>
                             <a href="<?php the_permalink(); ?>" class="blog-read-more">
-                                Read More
+                                <?php esc_html_e( 'Read More', 'travzo' ); ?>
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
                             </a>
                         </div>
@@ -190,23 +190,23 @@ get_header(); ?>
                 <?php endwhile; wp_reset_postdata(); ?>
             </div><!-- /.blog-list-grid -->
 
-            <div class="packages-pagination">
+            <nav class="packages-pagination" aria-label="<?php esc_attr_e( 'Blog pagination', 'travzo' ); ?>" style="margin-top:48px">
                 <?php echo paginate_links( [
-                    'total'     => $blog_query->max_num_pages,
+                    'total'     => $blog_q->max_num_pages,
                     'current'   => $paged,
-                    'prev_text' => '&larr; Previous',
-                    'next_text' => 'Next &rarr;',
+                    'prev_text' => '&larr; ' . __( 'Previous', 'travzo' ),
+                    'next_text' => __( 'Next', 'travzo' ) . ' &rarr;',
                     'type'      => 'list',
                 ] ); ?>
-            </div>
+            </nav>
 
             <?php else : ?>
 
-            <div class="no-posts-message">
-                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                <h3>No Posts Yet</h3>
-                <p>Check back soon for travel stories and tips.</p>
-                <a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="btn btn--gold">Back to Home</a>
+            <div class="packages-empty" style="padding:80px 0;text-align:center">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="rgba(26,42,94,0.2)" stroke-width="1.5" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                <h3 style="font-family:'Playfair Display',serif;color:var(--navy);margin-top:16px"><?php esc_html_e( 'No Posts Yet', 'travzo' ); ?></h3>
+                <p style="color:var(--text-muted);margin:12px 0 24px"><?php esc_html_e( 'Check back soon for travel stories and tips.', 'travzo' ); ?></p>
+                <a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="btn btn--gold"><?php esc_html_e( 'Back to Home', 'travzo' ); ?></a>
             </div>
 
             <?php endif; ?>
@@ -214,7 +214,7 @@ get_header(); ?>
         </div>
     </section>
 
-    <!-- ══ 5. NEWSLETTER ════════════════════════════════════════════════════ -->
+    <!-- ══ 5. NEWSLETTER ═════════════════════════════════════════════════════ -->
     <section class="newsletter-section">
         <div class="newsletter-inner">
             <div class="newsletter-icon" aria-hidden="true">
@@ -228,6 +228,6 @@ get_header(); ?>
         </div>
     </section>
 
-</main>
+</main><!-- /#main-content -->
 
 <?php get_footer(); ?>

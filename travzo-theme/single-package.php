@@ -589,7 +589,7 @@ $similar_args = [
 ];
 if ( $pkg_type ) {
     $similar_args['meta_query'] = [
-        [ 'key' => '_package_type', 'value' => $pkg_type, 'compare' => 'LIKE' ],
+        [ 'key' => '_package_type', 'value' => $pkg_type, 'compare' => '=' ],
     ];
 }
 $similar_packages = new WP_Query( $similar_args );

@@ -77,8 +77,8 @@ get_header();
             </div>
 
             <div class="about-story-content">
-                <div class="section-label"><?php esc_html_e( 'OUR STORY', 'travzo' ); ?></div>
-                <h2 class="section-heading section-heading--left"><?php echo esc_html( $story_heading ); ?></h2>
+                <div class="section-label"><?php echo esc_html( travzo_get( 'travzo_about_story_label', 'OUR STORY' ) ); ?></div>
+                <h2 class="section-heading section-heading--left"><?php echo esc_html( $story_heading ? $story_heading : travzo_get( 'travzo_about_story_heading', 'Who We Are' ) ); ?></h2>
 
                 <?php if ( $story_text ) : ?>
                     <div class="about-story-text"><?php echo wp_kses_post( $story_text ); ?></div>
@@ -145,8 +145,8 @@ get_header();
 <section class="why-us-section about-why-us">
     <div class="section-container">
 
-        <div class="section-label"><?php esc_html_e( 'WHY TRAVZO', 'travzo' ); ?></div>
-        <h2 class="section-heading"><?php esc_html_e( 'Why Travel With Us', 'travzo' ); ?></h2>
+        <div class="section-label"><?php echo esc_html( travzo_get( 'travzo_about_whyus_label', 'WHY TRAVZO' ) ); ?></div>
+        <h2 class="section-heading"><?php echo esc_html( travzo_get( 'travzo_about_whyus_heading', 'Why Travel With Us' ) ); ?></h2>
 
         <div class="features-grid features-grid-6">
 
@@ -210,8 +210,8 @@ get_header();
 <section class="team-section">
     <div class="section-container">
 
-        <div class="section-label"><?php esc_html_e( 'OUR PEOPLE', 'travzo' ); ?></div>
-        <h2 class="section-heading"><?php esc_html_e( 'Meet the Team', 'travzo' ); ?></h2>
+        <div class="section-label"><?php echo esc_html( travzo_get( 'travzo_about_team_label', 'OUR PEOPLE' ) ); ?></div>
+        <h2 class="section-heading"><?php echo esc_html( travzo_get( 'travzo_about_team_heading', 'Meet the Team' ) ); ?></h2>
 
         <div class="team-grid">
             <?php foreach ( $team as $member ) :
@@ -250,8 +250,8 @@ get_header();
 <section class="awards-section">
     <div class="section-container">
 
-        <div class="section-label"><?php esc_html_e( 'RECOGNITION', 'travzo' ); ?></div>
-        <h2 class="section-heading"><?php esc_html_e( 'Awards & Achievements', 'travzo' ); ?></h2>
+        <div class="section-label"><?php echo esc_html( travzo_get( 'travzo_about_awards_label', 'RECOGNITION' ) ); ?></div>
+        <h2 class="section-heading"><?php echo esc_html( travzo_get( 'travzo_about_awards_heading', 'Awards & Achievements' ) ); ?></h2>
 
         <div class="awards-grid">
             <?php foreach ( $awards as $award ) :
@@ -286,8 +286,8 @@ get_header();
 <section class="accreditations-section">
     <div class="section-container">
 
-        <div class="section-label"><?php esc_html_e( 'TRUSTED BY', 'travzo' ); ?></div>
-        <h2 class="section-heading"><?php esc_html_e( 'Our Accreditation Partners', 'travzo' ); ?></h2>
+        <div class="section-label"><?php echo esc_html( travzo_get( 'travzo_about_accreditation_label', 'TRUSTED BY' ) ); ?></div>
+        <h2 class="section-heading"><?php echo esc_html( travzo_get( 'travzo_about_accreditation_heading', 'Our Accreditation Partners' ) ); ?></h2>
 
         <div class="accreditation-logos-grid">
             <?php if ( $accreditations ) :
@@ -325,8 +325,8 @@ get_header();
 <section class="testimonials-section">
     <div class="section-inner">
 
-        <div class="section-label section-label--white"><?php esc_html_e( 'HAPPY TRAVELLERS', 'travzo' ); ?></div>
-        <h2 class="section-heading section-heading--white"><?php esc_html_e( 'What Our Travellers Say', 'travzo' ); ?></h2>
+        <div class="section-label section-label--white"><?php echo esc_html( travzo_get( 'travzo_about_testimonials_label', 'HAPPY TRAVELLERS' ) ); ?></div>
+        <h2 class="section-heading section-heading--white"><?php echo esc_html( travzo_get( 'travzo_about_testimonials_heading', 'What Our Travellers Say' ) ); ?></h2>
 
         <?php
         $default_testimonials = [
@@ -382,14 +382,14 @@ get_header();
 <section class="about-cta-section">
     <div class="section-container">
         <div class="about-cta-inner">
-            <h2><?php esc_html_e( 'Ready to Start Your Journey?', 'travzo' ); ?></h2>
-            <p><?php esc_html_e( 'Talk to our travel experts and get a personalised itinerary crafted just for you.', 'travzo' ); ?></p>
+            <h2><?php echo esc_html( travzo_get( 'travzo_about_cta_heading', 'Ready to Start Your Journey?' ) ); ?></h2>
+            <p><?php echo esc_html( travzo_get( 'travzo_about_cta_description', 'Let us help you create memories that last a lifetime' ) ); ?></p>
             <div class="about-cta-buttons">
-                <a href="<?php echo esc_url( home_url( '/packages' ) ); ?>" class="btn-primary">
-                    <?php esc_html_e( 'Explore Packages', 'travzo' ); ?>
+                <a href="<?php echo esc_url( home_url( travzo_get( 'travzo_about_cta_btn1_url', '/packages' ) ) ); ?>" class="btn-primary">
+                    <?php echo esc_html( travzo_get( 'travzo_about_cta_btn1_text', 'Explore Packages' ) ); ?>
                 </a>
-                <a href="<?php echo esc_url( home_url( '/contact' ) ); ?>" class="btn-ghost-white">
-                    <?php esc_html_e( 'Contact Us', 'travzo' ); ?>
+                <a href="<?php echo esc_url( home_url( travzo_get( 'travzo_about_cta_btn2_url', '/contact' ) ) ); ?>" class="btn-ghost-white">
+                    <?php echo esc_html( travzo_get( 'travzo_about_cta_btn2_text', 'Contact Us' ) ); ?>
                 </a>
             </div>
         </div>

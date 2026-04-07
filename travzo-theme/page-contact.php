@@ -217,6 +217,10 @@ get_header(); ?>
                     </div>
                     <?php endif; ?>
 
+                    <?php
+                    // Build the fallback HTML form (used when no WPForms ID is set)
+                    ob_start();
+                    ?>
                     <form class="contact-form" method="post" action="" novalidate>
                         <?php wp_nonce_field( 'travzo_contact_form', 'travzo_contact_nonce' ); ?>
 
@@ -293,6 +297,10 @@ get_header(); ?>
                             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                         </button>
                     </form>
+                    <?php
+                    $contact_fallback_html = ob_get_clean();
+                    travzo_render_form( 'travzo_form_contact', $contact_fallback_html );
+                    ?>
 
                     <?php endif; ?>
                 </div><!-- /.contact-form-card -->
